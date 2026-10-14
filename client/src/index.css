@@ -1,0 +1,90 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Tema claro (por defecto) */
+  --color-bg: #eef1f6;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f4f6f9;
+  --color-border: #e1e5ec;
+  --color-text: #1a2133;
+  --color-text-muted: #6b7486;
+  --color-accent: #3b66e0;
+  --color-accent-hover: #2f54c2;
+  --color-success: #1fa971;
+  --color-danger: #e5484d;
+  --color-danger-hover: #c93b40;
+
+  /* El sidebar es siempre oscuro, en ambos temas (ver más abajo). */
+  --color-sidebar-bg: #0f1623;
+  --color-sidebar-surface: #182238;
+  --color-sidebar-border: #1f2b44;
+  --color-sidebar-text: #e7ecf5;
+  --color-sidebar-text-muted: #8893ab;
+
+  /* Badges de color para etiquetas y rol (ver lib/badgeColors.ts) */
+  --color-pill-blue: #dbe6fd;
+  --color-pill-blue-ink: #2a52c7;
+  --color-pill-green: #d9f3e4;
+  --color-pill-green-ink: #16824f;
+  --color-pill-amber: #fdecd2;
+  --color-pill-amber-ink: #a5650a;
+  --color-pill-red: #fbdbdd;
+  --color-pill-red-ink: #c23240;
+  --color-pill-purple: #ead9fb;
+  --color-pill-purple-ink: #7435c2;
+  --color-pill-gray: #e7e9ee;
+  --color-pill-gray-ink: #4b5468;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Tema oscuro: mismos nombres de token, valores distintos. El sidebar no se
+   repite aquí a propósito, ya es oscuro en el tema claro. */
+:root[data-theme='dark'] {
+  --color-bg: #0f172a;
+  --color-surface: #1b2538;
+  --color-surface-hover: #212d45;
+  --color-border: #2b3850;
+  --color-text: #e8edf6;
+  --color-text-muted: #97a3bb;
+  --color-accent: #5b8def;
+  --color-accent-hover: #7aa2f5;
+  --color-success: #35d08a;
+  --color-danger: #e4606d;
+  --color-danger-hover: #ef7c87;
+
+  --color-pill-blue: #1f3463;
+  --color-pill-blue-ink: #9db6f5;
+  --color-pill-green: #143a2b;
+  --color-pill-green-ink: #6fe0ab;
+  --color-pill-amber: #3d2c10;
+  --color-pill-amber-ink: #f3bb6a;
+  --color-pill-red: #3c1a20;
+  --color-pill-red-ink: #f3929a;
+  --color-pill-purple: #2c1a44;
+  --color-pill-purple-ink: #cda4f5;
+  --color-pill-gray: #27314a;
+  --color-pill-gray-ink: #a9b3c7;
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* Foco visible y consistente para navegación por teclado (botones, enlaces, inputs...). */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

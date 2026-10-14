@@ -1,0 +1,41 @@
+# Dependencias
+node_modules/
+.npm/
+npm-debug.log*
+
+# Builds
+dist/
+build/
+*.tsbuildinfo
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Volúmenes y datos de contenedores
+data/
+mongo-data/
+docker-data/
+
+# Logs
+logs/
+*.log
+
+# Caché de herramientas
+.cache/
+.vite/
+.eslintcache
+
+# Cobertura de tests
+coverage/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp

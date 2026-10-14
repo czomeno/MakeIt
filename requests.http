@@ -1,0 +1,155 @@
+### MakeIt — peticiones de ejemplo (extensión REST Client de VS Code)
+### Ejecuta cada bloque con "Send Request"; las variables @name capturan la
+### respuesta para encadenar las siguientes peticiones automáticamente.
+
+@baseUrl = http://localhost:4000/api
+
+### Salud de la API
+GET {{baseUrl}}/health
+
+### Registro
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "password": "password123"
+}
+
+###
+@accessToken = {{register.response.body.accessToken}}
+
+### Login (alternativa si la cuenta ya existe)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "password123"
+}
+
+### Usuario autenticado
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Refrescar el access token (usa la cookie httpOnly devuelta por register/login)
+POST {{baseUrl}}/auth/refresh
+
+### Cerrar sesión
+POST {{baseUrl}}/auth/logout
+
+### Crear un tablero (siembra columnas del template)
+# @name createBoard
+POST {{baseUrl}}/boards
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Búsqueda de empleo",
+  "description": "Candidaturas en curso",
+  "template": "job-applications"
+}
+
+###
+@boardId = {{createBoard.response.body.board._id}}
+
+### Listar mis tableros
+GET {{baseUrl}}/boards
+Authorization: Bearer {{accessToken}}
+
+### Ver un tablero con sus columnas y tarjetas
+# @name getBoard
+GET {{baseUrl}}/boards/{{boardId}}
+Authorization: Bearer {{accessToken}}
+
+###
+@columnId = {{getBoard.response.body.board.columns[0]._id}}
+
+### Editar el tablero
+PATCH {{baseUrl}}/boards/{{boardId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "description": "Candidaturas activas este trimestre"
+}
+
+### Crear una columna
+# @name createColumn
+POST {{baseUrl}}/boards/{{boardId}}/columns
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Seguimiento"
+}
+
+###
+@newColumnId = {{createColumn.response.body.column._id}}
+
+### Renombrar una columna
+PATCH {{baseUrl}}/columns/{{newColumnId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Seguimiento semanal"
+}
+
+### Crear una tarjeta
+# @name createCard
+POST {{baseUrl}}/columns/{{columnId}}/cards
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Backend en Acme Inc.",
+  "company": "Acme Inc.",
+  "jobUrl": "https://acme.example.com/jobs/123",
+  "labels": ["remoto"]
+}
+
+###
+@cardId = {{createCard.response.body.card._id}}
+
+### Editar una tarjeta
+PATCH {{baseUrl}}/cards/{{cardId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "description": "Entrevista técnica el jueves"
+}
+
+### Mover la tarjeta a otra columna
+PATCH {{baseUrl}}/cards/{{cardId}}/move
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "columnId": "{{newColumnId}}"
+}
+
+### Mover una columna (reordenar)
+PATCH {{baseUrl}}/columns/{{newColumnId}}/move
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "prevColumnId": "{{columnId}}"
+}
+
+### Borrar una tarjeta
+DELETE {{baseUrl}}/cards/{{cardId}}
+Authorization: Bearer {{accessToken}}
+
+### Borrar una columna (y sus tarjetas)
+DELETE {{baseUrl}}/columns/{{newColumnId}}
+Authorization: Bearer {{accessToken}}
+
+### Borrar el tablero (y sus columnas/tarjetas) — solo admin
+DELETE {{baseUrl}}/boards/{{boardId}}
+Authorization: Bearer {{accessToken}}

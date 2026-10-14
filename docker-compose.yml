@@ -1,0 +1,70 @@
+# docker compose up --build levanta todo; no hace falta crear un .env.
+#
+# No fijamos un `name:` de proyecto a propósito: Compose deriva hoy el
+# nombre de proyecto del directorio (y por tanto los volúmenes) del
+# directorio actual; fijarlo a "makeit" aquí crearía un volumen nuevo vacío
+# y dejaría huérfanos los datos ya existentes. Ver README (Decisiones
+# técnicas) si se quiere migrar más adelante.
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: makeit-mongo
+    restart: unless-stopped
+    ports:
+      - '${MONGO_PORT:-27017}:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build:
+      context: ./server
+      target: dev
+    container_name: makeit-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 4000
+      MONGO_URI: mongodb://mongo:27017/${MONGO_DB:-kanban} # "mongo" = servicio de Compose
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me-before-deploying}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me-before-deploying}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      CHOKIDAR_USEPOLLING: 'true' # necesario para hot reload sobre el volumen montado
+    ports:
+      - '${PORT:-4000}:4000'
+    volumes:
+      - ./server:/app
+      - server-node-modules:/app/node_modules
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./client
+      target: dev
+    container_name: makeit-client
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:4000 # destino del proxy /api en desarrollo
+    ports:
+      - '${CLIENT_PORT:-5173}:5173'
+    volumes:
+      - ./client:/app
+      - client-node-modules:/app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  mongo-data:
+  server-node-modules:
+  client-node-modules:
