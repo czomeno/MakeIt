@@ -48,7 +48,7 @@
     "@types/node": "^22.10.2",
     "@types/supertest": "^6.0.2",
     "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint-config-prettier": "^10.1.8",
     "globals": "^15.13.0",
     "jest": "^30.5.2",
     "mongodb-memory-server": "^10.1.2",
