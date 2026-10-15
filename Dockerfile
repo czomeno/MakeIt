@@ -9,7 +9,7 @@
 # El desarrollo sigue usando server/Dockerfile y client/Dockerfile (target dev).
 
 # --- Frontend: bundle estático de Vite (+ service worker de la PWA)
-FROM node:24.21.0-alpine3.24 AS client-build
+FROM node:26.11.1-alpine3.24 AS client-build
 WORKDIR /app/client
 COPY client/package.json client/package-lock.json ./
 RUN npm ci
@@ -17,7 +17,7 @@ COPY client/ ./
 RUN npm run build
 
 # --- API: TypeScript compilado a dist/
-FROM node:24.21.0-alpine3.24 AS server-build
+FROM node:26.11.1-alpine3.24 AS server-build
 WORKDIR /app/server
 COPY server/package.json server/package-lock.json ./
 # --ignore-scripts: evita descargar el binario de mongod de los tests.
@@ -26,13 +26,13 @@ COPY server/ ./
 RUN npm run build
 
 # --- Solo dependencias de producción de la API
-FROM node:24.21.0-alpine3.24 AS server-prod-deps
+FROM node:26.11.1-alpine3.24 AS server-prod-deps
 WORKDIR /app
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # --- Producción
-FROM node:24.21.0-alpine3.24 AS prod
+FROM node:26.11.1-alpine3.24 AS prod
 ARG APP_VERSION=dev
 ENV NODE_ENV=production \
     PORT=4000 \

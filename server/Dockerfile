@@ -3,7 +3,7 @@
 
 # Versión exacta de Node (misma major que .nvmrc y que el CI). FROM literal,
 # sin ARG, para que Dependabot pueda actualizarla.
-FROM node:24.21.0-alpine3.24 AS base
+FROM node:26.11.1-alpine3.24 AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
 
