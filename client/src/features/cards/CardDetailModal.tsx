@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from '../../components/Modal';
 import { Input } from '../../components/Input';
 import { Textarea } from '../../components/Textarea';
+import { Select } from '../../components/Select';
+import { PRIORITY_OPTIONS } from '../../lib/priority';
 import { Button } from '../../components/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useUpdateCardMutation, useDeleteCardMutation } from './hooks';
@@ -24,6 +26,8 @@ const cardDetailSchema = z.object({
   company: z.string().trim().max(120).optional(),
   jobUrl: z.union([z.string().trim().url('URL inválida'), z.literal('')]).optional(),
   assignees: z.array(z.string()).optional(),
+  priority: z.enum(['', 'low', 'medium', 'high']),
+  completed: z.boolean(),
 });
 
 type CardDetailFormValues = z.infer<typeof cardDetailSchema>;
@@ -50,6 +54,8 @@ function cardToFormValues(card: Card): CardDetailFormValues {
     company: card.company ?? '',
     jobUrl: card.jobUrl ?? '',
     assignees: card.assignees,
+    priority: card.priority ?? '',
+    completed: card.completed ?? false,
   };
 }
 
@@ -78,6 +84,7 @@ export function CardDetailModal({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isDirty },
   } = useForm<CardDetailFormValues>({
     resolver: zodResolver(cardDetailSchema),
@@ -119,6 +126,8 @@ export function CardDetailModal({
           company: values.company || undefined,
           jobUrl: values.jobUrl || undefined,
           assignees: values.assignees ?? [],
+          priority: values.priority || null,
+          completed: values.completed,
         },
       },
       {
@@ -170,6 +179,31 @@ export function CardDetailModal({
               error={errors.labels?.message}
               {...register('labels')}
             />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="sm:flex-1">
+                <Controller
+                  name="priority"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Prioridad"
+                      options={[{ value: '', label: 'Sin prioridad' }, ...PRIORITY_OPTIONS]}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
+              </div>
+              <label className="flex items-center gap-2 pb-2 text-sm font-medium text-text sm:flex-1">
+                <input
+                  type="checkbox"
+                  {...register('completed')}
+                  className="h-4 w-4 rounded border-border accent-accent"
+                />
+                Hecha
+              </label>
+            </div>
             <Input
               label="Fecha límite"
               type="date"

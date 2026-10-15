@@ -9,7 +9,7 @@ import {
   getTokenExpiry,
 } from '../utils/tokens.js';
 import { AppError } from '../errors/AppError.js';
-import type { RegisterInput, LoginInput } from '../schemas/auth.schema.js';
+import type { RegisterInput, LoginInput, ChangePasswordInput } from '../schemas/auth.schema.js';
 
 export interface PublicUser {
   id: string;
@@ -128,6 +128,31 @@ export async function logout(token: string | undefined): Promise<void> {
   } catch {
     // Token ya inválido o caducado: no hay nada que revocar.
   }
+}
+
+// Cambia la contraseña y cierra todas las sesiones del usuario (las de otros
+// dispositivos incluidas). Devuelve una sesión nueva para que el dispositivo
+// que hizo el cambio siga conectado. Una contraseña actual incorrecta es un
+// 400 y no un 401: el cliente trata el 401 como sesión caducada.
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw AppError.unauthorized('Usuario no encontrado');
+  }
+
+  const valid = await verifyPassword(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw AppError.badRequest('La contraseña actual no es correcta');
+  }
+
+  user.passwordHash = await hashPassword(input.newPassword);
+  await user.save();
+  await RefreshToken.deleteMany({ user: user._id });
+
+  return issueSession(user);
 }
 
 export async function getById(userId: string): Promise<PublicUser> {

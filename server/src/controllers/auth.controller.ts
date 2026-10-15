@@ -50,6 +50,13 @@ export const logout: RequestHandler = async (req, res) => {
   res.status(204).send();
 };
 
+export const changePassword: RequestHandler = async (req, res) => {
+  const authUser = requireUser(req);
+  const { accessToken, refreshToken } = await authService.changePassword(authUser.id, req.body);
+  res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(refreshToken));
+  res.status(200).json({ accessToken });
+};
+
 export const me: RequestHandler = async (req, res) => {
   const authUser = requireUser(req);
   const user = await authService.getById(authUser.id);

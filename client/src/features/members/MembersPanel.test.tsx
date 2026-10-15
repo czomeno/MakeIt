@@ -65,10 +65,12 @@ describe('MembersPanel', () => {
     renderPanel(true);
     await screen.findByText('Edi Tor');
 
-    const select = screen.getByLabelText('Rol de Edi Tor');
-    await user.selectOptions(select, 'viewer');
+    await user.click(screen.getByRole('button', { name: 'Rol de Edi Tor: Editor' }));
+    await user.click(screen.getByRole('option', { name: 'Lector' }));
 
-    expect(await screen.findByDisplayValue('Lector')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Rol de Edi Tor: Lector' }),
+    ).toBeInTheDocument();
   });
 
   it('un no-admin no ve selector de rol, solo la etiqueta', async () => {
@@ -78,7 +80,7 @@ describe('MembersPanel', () => {
     renderPanel(false);
     await screen.findByText('Edi Tor');
 
-    expect(screen.queryByLabelText('Rol de Edi Tor')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Rol de Edi Tor/ })).not.toBeInTheDocument();
     expect(screen.getAllByText('Editor')).not.toHaveLength(0);
   });
 

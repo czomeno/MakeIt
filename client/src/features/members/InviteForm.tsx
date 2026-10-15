@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from '../../components/Input';
@@ -44,6 +44,7 @@ export function InviteForm({ boardId }: InviteFormProps) {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<InviteFormValues>({
     resolver: zodResolver(inviteSchema),
@@ -108,11 +109,25 @@ export function InviteForm({ boardId }: InviteFormProps) {
             {...register('email')}
           />
         </div>
-        <Select label="Rol" error={errors.role?.message} className="sm:w-32" {...register('role')}>
-          <option value="admin">Admin</option>
-          <option value="editor">Editor</option>
-          <option value="viewer">Lector</option>
-        </Select>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Rol"
+              error={errors.role?.message}
+              className="sm:w-32"
+              options={[
+                { value: 'admin', label: ROLE_LABELS.admin },
+                { value: 'editor', label: ROLE_LABELS.editor },
+                { value: 'viewer', label: ROLE_LABELS.viewer },
+              ]}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
+        />
         <Button type="submit" isLoading={createInvitation.isPending}>
           Invitar
         </Button>

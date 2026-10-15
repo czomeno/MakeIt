@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 export interface TestUser {
   name: string;
@@ -33,11 +33,38 @@ export async function createBoardViaUi(
   await page.getByRole('button', { name: 'Nuevo tablero' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo tablero' });
   await dialog.getByLabel('Título').fill(title);
-  await dialog.getByLabel('Plantilla').selectOption({ label: template });
+  await chooseOption(dialog.getByLabel('Plantilla'), template);
   await dialog.getByRole('button', { name: 'Crear tablero' }).click();
   await expect(page).toHaveURL(/\/boards\/[0-9a-f]{24}$/);
   await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  // Los tableros se abren en la vista de lista; los e2e trabajan sobre la de
+  // columnas (arrastrar y soltar). La elección se recuerda en el navegador.
+  await expect(page.getByRole('radio', { name: 'Lista' })).toHaveAttribute('aria-checked', 'true');
+  await showBoardView(page);
   return new URL(page.url()).pathname.split('/').pop()!;
+}
+
+// Desplegables propios (Dropdown): botón que abre una lista de opciones. La
+// lista se pinta en un portal al final de <body>, fuera del diálogo.
+export async function chooseOption(button: Locator, option: string): Promise<void> {
+  await button.click();
+  const page = button.page();
+  await page.getByRole('listbox').getByRole('option', { name: option, exact: true }).click();
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+}
+
+export async function showBoardView(page: Page): Promise<void> {
+  await page.getByRole('radio', { name: 'Tablero' }).click();
+  await expect(page.getByRole('radio', { name: 'Tablero' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+}
+
+// La cabecera del tablero ya no muestra "En vivo"; el estado del socket queda
+// en un atributo para que los tests esperen a la conexión.
+export function liveConnection(page: Page) {
+  return page.locator('[data-connection-status="connected"]');
 }
 
 // Cada columna se localiza por su botón de título (accesible también en modo

@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client';
 import { Button } from '../../components/Button';
 import { Spinner } from '../../components/Spinner';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { Logo } from '../../components/Logo';
 
 // Esta ruta vive bajo <ProtectedRoute>: si no hay sesión, ya se ha
 // redirigido a /login (y de vuelta aquí tras autenticarse) antes de llegar.
@@ -36,9 +37,7 @@ export function AcceptInvitePage() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
       <div className="flex w-full max-w-sm items-center justify-between">
         <span className="flex items-center gap-2 text-lg font-semibold">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-xs font-bold text-white">
-            M
-          </span>
+          <Logo className="h-7 w-7" />
           MakeIt
         </span>
         <ThemeToggle />

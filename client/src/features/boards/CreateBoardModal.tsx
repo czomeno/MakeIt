@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +39,7 @@ export function CreateBoardModal({ isOpen, onClose }: CreateBoardModalProps) {
     handleSubmit,
     watch,
     reset,
+    control,
     formState: { errors },
   } = useForm<CreateBoardFormValues>({
     resolver: zodResolver(createBoardSchema),
@@ -74,10 +75,23 @@ export function CreateBoardModal({ isOpen, onClose }: CreateBoardModalProps) {
           error={errors.description?.message}
           {...register('description')}
         />
-        <Select label="Plantilla" hint={TEMPLATE_DESCRIPTIONS[template]} {...register('template')}>
-          <option value="generic">Genérico</option>
-          <option value="job-applications">Candidaturas de empleo</option>
-        </Select>
+        <Controller
+          name="template"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Plantilla"
+              hint={TEMPLATE_DESCRIPTIONS[template]}
+              options={[
+                { value: 'generic', label: 'Genérico' },
+                { value: 'job-applications', label: 'Candidaturas de empleo' },
+              ]}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
+        />
 
         <div className="mt-2 flex justify-end gap-3">
           <Button

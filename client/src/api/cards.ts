@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { Card } from '../types/api';
+import type { Card, CardPriority } from '../types/api';
 
 export interface CardInput {
   title: string;
@@ -9,6 +9,9 @@ export interface CardInput {
   company?: string;
   jobUrl?: string;
   assignees?: string[];
+  // null quita la prioridad al editar.
+  priority?: CardPriority | null;
+  completed?: boolean;
 }
 
 export interface MoveCardInput {

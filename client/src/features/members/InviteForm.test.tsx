@@ -60,7 +60,8 @@ describe('InviteForm', () => {
     await screen.findByText('No hay invitaciones pendientes.');
 
     await user.type(screen.getByLabelText('Email'), 'nuevo@example.com');
-    await user.selectOptions(screen.getByLabelText('Rol'), 'viewer');
+    await user.click(screen.getByRole('button', { name: /^Rol/ }));
+    await user.click(screen.getByRole('option', { name: 'Lector' }));
     await user.click(screen.getByRole('button', { name: 'Invitar' }));
 
     expect(await screen.findByText('Invitación creada.')).toBeInTheDocument();

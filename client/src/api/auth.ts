@@ -24,6 +24,20 @@ export interface LoginInput {
   password: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// El servidor cierra todas las sesiones y devuelve una nueva para este
+// dispositivo (cookie de refresh nueva + access token).
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  const data = refreshSchema.parse(
+    await apiRequest('/auth/password', { method: 'POST', body: input }),
+  );
+  useAuthStore.getState().setAccessToken(data.accessToken);
+}
+
 export async function register(input: RegisterInput) {
   const data = sessionSchema.parse(
     await rawRequest('/auth/register', { method: 'POST', body: input }),

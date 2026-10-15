@@ -59,6 +59,66 @@ describe('tarjetas', () => {
     expect(response.body.card).toMatchObject({ title: 'Editada', labels: ['urgente'] });
   });
 
+  it('crea una tarjeta con prioridad y sin completar por defecto', async () => {
+    const { accessToken } = await registerUser(app);
+    const board = await createBoard(app, accessToken, { template: 'generic' });
+    const [first] = await getColumns(accessToken, board._id);
+
+    const response = await request(app)
+      .post(`/api/columns/${first!._id}/cards`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Con prioridad', priority: 'high' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.card).toMatchObject({ priority: 'high', completed: false });
+  });
+
+  it('marca una tarjeta como completada y cambia y quita su prioridad', async () => {
+    const { accessToken } = await registerUser(app);
+    const board = await createBoard(app, accessToken, { template: 'generic' });
+    const [first] = await getColumns(accessToken, board._id);
+    const created = await request(app)
+      .post(`/api/columns/${first!._id}/cards`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Tarea', priority: 'low' });
+    const url = `/api/cards/${created.body.card._id}`;
+
+    const completed = await request(app)
+      .patch(url)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ completed: true, priority: 'medium' });
+    expect(completed.status).toBe(200);
+    expect(completed.body.card).toMatchObject({ completed: true, priority: 'medium' });
+
+    // Editar otro campo no toca la prioridad.
+    const renamed = await request(app)
+      .patch(url)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Tarea renombrada' });
+    expect(renamed.body.card.priority).toBe('medium');
+
+    const cleared = await request(app)
+      .patch(url)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ priority: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.card.priority).toBeUndefined();
+    expect((await Card.findById(created.body.card._id).lean())?.priority).toBeUndefined();
+  });
+
+  it('rechaza una prioridad desconocida', async () => {
+    const { accessToken } = await registerUser(app);
+    const board = await createBoard(app, accessToken, { template: 'generic' });
+    const [first] = await getColumns(accessToken, board._id);
+
+    const response = await request(app)
+      .post(`/api/columns/${first!._id}/cards`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Mala', priority: 'urgentísima' });
+
+    expect(response.status).toBe(400);
+  });
+
   it('mueve una tarjeta dentro de la misma columna y el orden resultante es correcto', async () => {
     const { accessToken } = await registerUser(app);
     const board = await createBoard(app, accessToken, { template: 'generic' });

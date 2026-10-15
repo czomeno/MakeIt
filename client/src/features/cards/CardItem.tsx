@@ -1,6 +1,8 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import type { Card } from '../../types/api';
 import { avatarColorFor, pillClassesFor } from '../../lib/badgeColors';
+import { PRIORITY_LABELS, priorityClassesFor } from '../../lib/priority';
+import { formatDueDate } from '../../lib/dueDate';
 
 interface CardItemProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   card: Card;
@@ -23,7 +25,18 @@ export const CardItem = forwardRef<HTMLButtonElement, CardItemProps>(function Ca
       } ${isDragging ? 'opacity-40' : ''} ${className}`}
       {...rest}
     >
-      <span className="font-medium">{card.title}</span>
+      <span className="flex items-start justify-between gap-2">
+        <span className={`font-medium ${card.completed ? 'text-text-muted line-through' : ''}`}>
+          {card.title}
+        </span>
+        {card.priority && (
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${priorityClassesFor(card.priority)}`}
+          >
+            {PRIORITY_LABELS[card.priority]}
+          </span>
+        )}
+      </span>
       {card.company && (
         <span className="flex items-center gap-1.5 text-xs text-text-muted">
           <span
@@ -48,9 +61,7 @@ export const CardItem = forwardRef<HTMLButtonElement, CardItemProps>(function Ca
         </div>
       )}
       {card.dueDate && (
-        <span className="text-[11px] text-text-muted">
-          {new Date(card.dueDate).toLocaleDateString('es-ES')}
-        </span>
+        <span className="text-[11px] text-text-muted">{formatDueDate(card.dueDate)}</span>
       )}
     </button>
   );

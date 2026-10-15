@@ -181,7 +181,8 @@ En `/client`:
 │   │   │   │                       # anuncios, coordinate getter de teclado,
 │   │   │   │                       # useBoardSocket, remoteReducers
 │   │   │   ├── members/            # Miembros, invitaciones, aceptar invitación
-│   │   │   └── activity/           # Panel de actividad, frases en español
+│   │   │   ├── activity/           # Panel de actividad, frases en español
+│   │   │   └── settings/           # Ajustes: tema y cambio de contraseña
 │   │   ├── socket/                # Singleton de socket.io-client + contrato
 │   │   │                           # de eventos (duplicado del servidor)
 │   │   ├── test/                  # Setup de Vitest + MSW + doble del socket
@@ -191,7 +192,7 @@ En `/client`:
 │   ├── vite.config.ts          # Proxy de /api + configuración de Vitest
 │   ├── tsconfig*.json
 │   ├── eslint.config.js
-│   ├── public/                 # Iconos de la PWA (logo.svg + PNG)
+│   ├── public/                 # Logo e iconos de la PWA (PNG generados desde el logo)
 │   ├── Dockerfile              # Desarrollo (Vite); producción: Dockerfile de la raíz
 │   └── .dockerignore
 ├── server/                     # API Express
@@ -305,6 +306,7 @@ tienen la forma `{ "error": { "code", "message", "details"? } }`.
 | `POST`   | `/api/auth/login`                      | —                                          | Igual que arriba, validando credenciales                            |
 | `POST`   | `/api/auth/refresh`                    | cookie refresh                             | Rota el refresh token; devuelve `accessToken` nuevo                 |
 | `POST`   | `/api/auth/logout`                     | cookie refresh                             | Invalida el refresh token activo                                    |
+| `POST`   | `/api/auth/password`                   | token                                      | Cambia la contraseña, cierra todas las sesiones y abre una nueva    |
 | `GET`    | `/api/auth/me`                         | token                                      | Usuario autenticado                                                 |
 | `GET`    | `/api/boards`                          | token                                      | Tableros donde el usuario es miembro                                |
 | `POST`   | `/api/boards`                          | token                                      | Crea un tablero; el creador queda como `admin`                      |
@@ -348,7 +350,8 @@ con Vitest + Testing Library + MSW (socket mockeado, ver `test/socketMock.ts`).
 
 Rediseño ("Makeit") inspirado en un panel de seguimiento de tareas: sidebar
 oscuro fijo (logo, "Mis tableros", "+ Nuevo tablero") y contenido claro u
-oscuro según el interruptor de la cabecera. El tema se guarda en
+oscuro según el interruptor de Ajustes → Visualización (`/settings`, enlace al
+pie de la barra lateral). El tema se guarda en
 `localStorage` (store `themeStore.ts`, con `zustand/persist`) y, si no hay
 preferencia guardada, arranca según `prefers-color-scheme` del sistema. Las
 etiquetas de las tarjetas y el avatar de la empresa usan un color

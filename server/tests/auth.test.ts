@@ -196,3 +196,82 @@ describe('auth: casos límite', () => {
     expect(withGarbage.status).toBe(204);
   });
 });
+
+describe('POST /api/auth/password', () => {
+  it('cambia la contraseña, cierra las demás sesiones y mantiene la actual', async () => {
+    const user = await registerUser(app, { password: 'password123' });
+    // Otra sesión del mismo usuario (otro dispositivo).
+    const otherLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: 'password123' });
+    const otherCookie = String(otherLogin.headers['set-cookie']?.[0]);
+
+    const response = await request(app)
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .set('Cookie', user.refreshTokenCookie)
+      .send({ currentPassword: 'password123', newPassword: 'nueva-clave-segura' });
+
+    expect(response.status).toBe(200);
+    expect(typeof response.body.accessToken).toBe('string');
+    const newCookie = String(response.headers['set-cookie']?.[0]);
+    expect(newCookie).toMatch(/refreshToken=.+HttpOnly/i);
+
+    const oldLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: 'password123' });
+    expect(oldLogin.status).toBe(401);
+    const newLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: 'nueva-clave-segura' });
+    expect(newLogin.status).toBe(200);
+
+    // Las sesiones anteriores quedan revocadas; la nueva funciona.
+    for (const cookie of [user.refreshTokenCookie, otherCookie]) {
+      const refresh = await request(app).post('/api/auth/refresh').set('Cookie', cookie);
+      expect(refresh.status).toBe(401);
+    }
+    const refreshNew = await request(app).post('/api/auth/refresh').set('Cookie', newCookie);
+    expect(refreshNew.status).toBe(200);
+  });
+
+  it('rechaza una contraseña actual incorrecta con 400 (no 401) y no cambia nada', async () => {
+    const user = await registerUser(app, { password: 'password123' });
+
+    const response = await request(app)
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({ currentPassword: 'incorrecta', newPassword: 'nueva-clave-segura' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe('La contraseña actual no es correcta');
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: 'password123' });
+    expect(login.status).toBe(200);
+    const refresh = await request(app)
+      .post('/api/auth/refresh')
+      .set('Cookie', user.refreshTokenCookie);
+    expect(refresh.status).toBe(200);
+  });
+
+  it('valida la contraseña nueva: mínimo 10 caracteres y distinta de la actual', async () => {
+    const user = await registerUser(app, { password: 'password123' });
+
+    for (const newPassword of ['corta', 'password123']) {
+      const response = await request(app)
+        .post('/api/auth/password')
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .send({ currentPassword: 'password123', newPassword });
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    }
+  });
+
+  it('exige estar autenticado', async () => {
+    const response = await request(app)
+      .post('/api/auth/password')
+      .send({ currentPassword: 'password123', newPassword: 'nueva-clave-segura' });
+    expect(response.status).toBe(401);
+  });
+});

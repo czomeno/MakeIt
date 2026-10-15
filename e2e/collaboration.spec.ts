@@ -1,12 +1,15 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
   addCard,
+  chooseOption,
   column,
   createBoardViaUi,
   dragAnnouncement,
   dragCardWithKeyboard,
+  liveConnection,
   newUser,
   registerViaApi,
+  showBoardView,
 } from './helpers';
 
 async function openCollaborationTab(page: Page, tab: 'Miembros' | 'Invitar') {
@@ -37,7 +40,7 @@ test('dos usuarios: invitación, movimiento en vivo, cambio de rol y expulsión'
     await test.step('A invita a B por enlace y B acepta', async () => {
       const dialog = await openCollaborationTab(pageA, 'Invitar');
       await dialog.getByLabel('Email').fill(userB.email);
-      await dialog.getByLabel('Rol').selectOption({ label: 'Editor' });
+      await chooseOption(dialog.getByLabel('Rol', { exact: false }), 'Editor');
       await dialog.getByRole('button', { name: 'Invitar' }).click();
       const link = await dialog.getByRole('textbox', { name: 'Enlace de invitación' }).inputValue();
       await pageA.keyboard.press('Escape');
@@ -46,8 +49,9 @@ test('dos usuarios: invitación, movimiento en vivo, cambio de rol y expulsión'
       await expect(
         pageB.getByRole('heading', { level: 1, name: boardTitle, exact: true }),
       ).toBeVisible();
-      await expect(pageB.getByText('En vivo')).toBeVisible();
-      await expect(pageA.getByText('En vivo')).toBeVisible();
+      await showBoardView(pageB);
+      await expect(liveConnection(pageB)).toBeVisible();
+      await expect(liveConnection(pageA)).toBeVisible();
     });
 
     await test.step('A mueve una tarjeta y B la ve moverse sin recargar', async () => {
@@ -66,9 +70,10 @@ test('dos usuarios: invitación, movimiento en vivo, cambio de rol y expulsión'
       ).toBeVisible();
 
       const dialog = await openCollaborationTab(pageA, 'Miembros');
-      await dialog.getByRole('combobox', { name: `Rol de ${userB.name}` }).selectOption({
-        label: 'Lector',
-      });
+      await chooseOption(
+        dialog.getByRole('button', { name: new RegExp(`^Rol de ${userB.name}`) }),
+        'Lector',
+      );
 
       await expect(pageB.getByRole('textbox', { name: 'Añadir tarjeta a Por hacer' })).toHaveCount(
         0,

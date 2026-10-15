@@ -7,6 +7,7 @@ import { RegisterPage } from '../features/auth/RegisterPage';
 import { BoardsListPage } from '../features/boards/BoardsListPage';
 import { BoardPage } from '../features/boards/BoardPage';
 import { AcceptInvitePage } from '../features/members/AcceptInvitePage';
+import { SettingsPage } from '../features/settings/SettingsPage';
 import { AppLayout } from '../components/AppLayout';
 
 export function AppRouter() {
@@ -23,6 +24,7 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/boards" element={<BoardsListPage />} />
           <Route path="/boards/:id" element={<BoardPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

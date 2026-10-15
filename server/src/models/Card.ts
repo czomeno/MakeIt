@@ -1,5 +1,8 @@
 import { Schema, model, type HydratedDocument, type InferSchemaType } from 'mongoose';
 
+export const CARD_PRIORITIES = ['low', 'medium', 'high'] as const;
+export type CardPriority = (typeof CARD_PRIORITIES)[number];
+
 const cardSchema = new Schema(
   {
     board: { type: Schema.Types.ObjectId, ref: 'Board', required: true, index: true },
@@ -10,6 +13,8 @@ const cardSchema = new Schema(
     labels: { type: [String], default: [] },
     dueDate: { type: Date },
     assignees: { type: [Schema.Types.ObjectId], ref: 'User', default: [] },
+    priority: { type: String, enum: CARD_PRIORITIES },
+    completed: { type: Boolean, default: false },
     // Campos opcionales para el template "job-applications".
     company: { type: String, trim: true },
     jobUrl: { type: String, trim: true },

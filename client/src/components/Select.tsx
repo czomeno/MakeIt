@@ -1,37 +1,51 @@
-import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
+import { useId } from 'react';
+import { Dropdown, type DropdownOption } from './Dropdown';
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps<T extends string> {
   label: string;
+  options: DropdownOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  onBlur?: () => void;
   error?: string;
   hint?: string;
+  className?: string;
 }
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, hint, id, className = '', children, ...rest },
-  ref,
-) {
-  const generatedId = useId();
-  const inputId = id ?? generatedId;
-  const errorId = error ? `${inputId}-error` : undefined;
-  const hintId = hint ? `${inputId}-hint` : undefined;
+// Campo de formulario con etiqueta, ayuda y error, sobre el desplegable
+// propio (ver Dropdown). Con react-hook-form se usa a través de <Controller>.
+export function Select<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  onBlur,
+  error,
+  hint,
+  className = '',
+}: SelectProps<T>) {
+  const id = useId();
+  const labelId = `${id}-label`;
+  const errorId = error ? `${id}-error` : undefined;
+  const hintId = hint ? `${id}-hint` : undefined;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-sm font-medium text-text">
+    <div className={`flex flex-col gap-1.5 ${className}`}>
+      {/* Sin htmlFor a propósito: con <label for> el botón tomaría la etiqueta
+          como nombre dos veces ("Plantilla Plantilla") en vez de "Plantilla Genérico". */}
+      <span id={labelId} className="text-sm font-medium text-text">
         {label}
-      </label>
-      <select
-        ref={ref}
-        id={inputId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={[errorId, hintId].filter(Boolean).join(' ') || undefined}
-        className={`rounded-lg border bg-surface px-3 py-2 text-sm text-text focus-visible:outline-2 focus-visible:outline-accent ${
-          error ? 'border-danger' : 'border-border'
-        } ${className}`}
-        {...rest}
-      >
-        {children}
-      </select>
+      </span>
+      <Dropdown
+        id={`${id}-button`}
+        labelledBy={labelId}
+        options={options}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        invalid={Boolean(error)}
+        describedBy={[errorId, hintId].filter(Boolean).join(' ') || undefined}
+      />
       {hint && !error && (
         <p id={hintId} className="text-xs text-text-muted">
           {hint}
@@ -44,4 +58,4 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       )}
     </div>
   );
-});
+}

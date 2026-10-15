@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, within, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -9,6 +9,7 @@ import { fakeSocket } from '../../test/socketMock';
 import { BoardPage } from './BoardPage';
 import { Toaster } from '../../components/Toaster';
 import { useAuthStore } from '../../stores/authStore';
+import { useViewPreferenceStore } from '../../stores/viewPreferenceStore';
 import { TEST_USER } from '../../test/handlers';
 import type { BoardWithContent, BoardRole } from '../../types/api';
 
@@ -152,7 +153,70 @@ function mockBoardServer(initialBoard: BoardWithContent) {
   );
 }
 
+describe('BoardPage: vista inicial', () => {
+  it('abre en la vista de lista y recuerda el cambio a tablero', async () => {
+    signIn();
+    mockBoardServer(makeBoard('editor'));
+    const user = userEvent.setup();
+
+    renderBoard();
+
+    expect(await screen.findByRole('list', { name: 'Tareas' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Lista' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByLabelText('Añadir tarjeta a Hecho')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Tablero' }));
+
+    expect(await screen.findByLabelText('Añadir tarjeta a Hecho')).toBeInTheDocument();
+    expect(useViewPreferenceStore.getState().boardView).toBe('board');
+    expect(localStorage.getItem('makeit-board-view')).toContain('"board"');
+  });
+});
+
+describe('BoardPage: añadir tarea o candidatura', () => {
+  it('el botón junto a Lista/Tablero abre el pop-up de nueva tarea', async () => {
+    signIn();
+    mockBoardServer(makeBoard('editor'));
+    const user = userEvent.setup();
+    renderBoard();
+
+    const viewSwitch = await screen.findByRole('radiogroup', { name: 'Vista del tablero' });
+    const addButton = screen.getByRole('button', { name: 'Añadir tarea' });
+    expect(viewSwitch.parentElement).toContainElement(addButton);
+
+    await user.click(addButton);
+    expect(screen.getByRole('dialog', { name: 'Nueva tarea' })).toBeInTheDocument();
+  });
+
+  it('en un tablero de candidaturas dice «Añadir candidatura»', async () => {
+    signIn();
+    mockBoardServer({ ...makeBoard('editor'), template: 'job-applications' });
+    const user = userEvent.setup();
+    renderBoard();
+
+    await user.click(await screen.findByRole('button', { name: 'Añadir candidatura' }));
+    const dialog = screen.getByRole('dialog', { name: 'Nueva candidatura' });
+    expect(within(dialog).getByLabelText('Empresa')).toBeInTheDocument();
+  });
+
+  it('un lector no ve el botón', async () => {
+    signIn();
+    mockBoardServer(makeBoard('viewer'));
+    renderBoard();
+
+    expect(
+      await screen.findByRole('radiogroup', { name: 'Vista del tablero' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Añadir tarea' })).toBeNull();
+  });
+});
+
 describe('BoardPage', () => {
+  // Estos tests prueban la vista de tablero (columnas y arrastre).
+  beforeEach(() => {
+    useViewPreferenceStore.setState({ boardView: 'board' });
+  });
+
   it('renderiza columnas y tarjetas en el orden del backend', async () => {
     signIn();
     mockBoardServer(makeBoard('editor'));

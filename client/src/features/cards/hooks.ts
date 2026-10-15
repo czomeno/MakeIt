@@ -27,6 +27,42 @@ export function useUpdateCardMutation(boardId: string) {
   });
 }
 
+interface CompletedContext {
+  previous?: BoardWithContent;
+}
+
+// Marcar como hecha es un clic rápido en la lista: se refleja al instante y,
+// si el servidor falla, se deshace (igual que mover una tarjeta).
+export function useToggleCardCompletedMutation(boardId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<unknown, unknown, { id: string; completed: boolean }, CompletedContext>({
+    mutationFn: ({ id, completed }) => cardsApi.updateCard(id, { completed }),
+    onMutate: async ({ id, completed }) => {
+      await queryClient.cancelQueries({ queryKey: boardsKeys.detail(boardId) });
+      const previous = queryClient.getQueryData<BoardWithContent>(boardsKeys.detail(boardId));
+      if (previous) {
+        queryClient.setQueryData<BoardWithContent>(boardsKeys.detail(boardId), {
+          ...previous,
+          columns: previous.columns.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) => (card._id === id ? { ...card, completed } : card)),
+          })),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(boardsKeys.detail(boardId), context.previous);
+      }
+      toastError('No se pudo actualizar la tarjeta. Se ha deshecho el cambio.');
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: boardsKeys.detail(boardId) });
+    },
+  });
+}
+
 export function useDeleteCardMutation(boardId: string) {
   const queryClient = useQueryClient();
   return useMutation({

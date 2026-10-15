@@ -7,6 +7,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
 import { useToastStore } from '../stores/toastStore';
 import { useConnectivityStore } from '../stores/connectivityStore';
+import { useViewPreferenceStore } from '../stores/viewPreferenceStore';
+import { usePresenceStore } from '../stores/presenceStore';
 
 // jsdom no puede abrir sockets reales (y no debería intentarlo en tests):
 // cualquier `io(...)` de socket.io-client, en cualquier archivo, recibe este
@@ -24,6 +26,8 @@ afterEach(() => {
   useUiStore.setState({ isCreateBoardOpen: false });
   useToastStore.setState({ toasts: [] });
   useConnectivityStore.setState({ slowRequests: 0 });
+  useViewPreferenceStore.setState({ boardView: 'list', isBoardsMenuOpen: true });
+  usePresenceStore.setState({ presence: [] });
 });
 
 afterAll(() => server.close());

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMembersQuery, useUpdateMemberRoleMutation, useRemoveMemberMutation } from './hooks';
+import { Dropdown } from '../../components/Dropdown';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Spinner } from '../../components/Spinner';
 import { ApiError } from '../../api/client';
@@ -97,18 +98,14 @@ export function MembersPanel({ boardId, isAdmin, ownerId }: MembersPanelProps) {
             </div>
 
             {isAdmin && !isOwner ? (
-              <select
+              <Dropdown
+                variant="compact"
+                className="shrink-0"
+                ariaLabel={`Rol de ${member.name || member.email}`}
                 value={member.role}
-                onChange={(event) => handleRoleChange(member, event.target.value as BoardRole)}
-                aria-label={`Rol de ${member.name || member.email}`}
-                className="shrink-0 rounded-md border border-border bg-bg px-2 py-1 text-xs text-text"
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {ROLE_LABELS[role]}
-                  </option>
-                ))}
-              </select>
+                onChange={(role) => handleRoleChange(member, role)}
+                options={ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }))}
+              />
             ) : (
               <span className="shrink-0 text-xs text-text-muted">
                 {ROLE_LABELS[member.role]}

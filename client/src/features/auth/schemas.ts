@@ -15,5 +15,24 @@ export const registerSchema = z.object({
     .max(72, 'Máximo 72 caracteres'),
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'La contraseña actual es obligatoria'),
+    newPassword: z
+      .string()
+      .min(10, 'La contraseña debe tener al menos 10 caracteres')
+      .max(72, 'Máximo 72 caracteres'),
+    confirmPassword: z.string().min(1, 'Repite la contraseña nueva'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Las contraseñas no coinciden',
+    path: ['confirmPassword'],
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: 'La contraseña nueva debe ser distinta de la actual',
+    path: ['newPassword'],
+  });
+
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type RegisterFormValues = z.infer<typeof registerSchema>;
+export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;

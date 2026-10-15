@@ -37,6 +37,8 @@ export interface Column {
   updatedAt: string;
 }
 
+export type CardPriority = 'low' | 'medium' | 'high';
+
 export interface Card {
   _id: string;
   board: string;
@@ -49,6 +51,9 @@ export interface Card {
   assignees: string[];
   company?: string;
   jobUrl?: string;
+  priority?: CardPriority;
+  // Las tarjetas anteriores a este campo no lo traen: undefined = no hecha.
+  completed?: boolean;
   createdAt: string;
   updatedAt: string;
 }

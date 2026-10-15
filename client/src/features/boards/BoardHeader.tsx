@@ -1,25 +1,17 @@
 import type { Board } from '../../types/api';
 import { Button } from '../../components/Button';
-import { avatarColorFor } from '../../lib/badgeColors';
-import type { ConnectionStatus, PresenceUser } from '../board/useBoardSocket';
+import type { ConnectionStatus } from '../board/useBoardSocket';
 
 const TEMPLATE_LABELS: Record<Board['template'], string> = {
   generic: 'Genérico',
   'job-applications': 'Candidaturas de empleo',
 };
 
-const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
-  connecting: 'Conectando…',
-  connected: 'En vivo',
-  reconnecting: 'Reconectando…',
-  offline: 'Sin conexión',
-};
-
-const CONNECTION_DOT: Record<ConnectionStatus, string> = {
-  connecting: 'bg-text-muted',
-  connected: 'bg-success',
-  reconnecting: 'bg-amber-500',
-  offline: 'bg-danger',
+// Con la conexión en marcha no se muestra nada: solo se avisa cuando se ha
+// caído, para que nadie siga editando sin saber que no le llegan los cambios.
+const CONNECTION_PROBLEMS: Partial<Record<ConnectionStatus, { label: string; dot: string }>> = {
+  reconnecting: { label: 'Reconectando…', dot: 'bg-amber-500 animate-pulse' },
+  offline: { label: 'Sin conexión', dot: 'bg-danger' },
 };
 
 interface BoardHeaderProps {
@@ -29,7 +21,6 @@ interface BoardHeaderProps {
   onDelete: () => void;
   onOpenCollaboration: () => void;
   connectionStatus: ConnectionStatus;
-  presence: PresenceUser[];
 }
 
 export function BoardHeader({
@@ -39,10 +30,15 @@ export function BoardHeader({
   onDelete,
   onOpenCollaboration,
   connectionStatus,
-  presence,
 }: BoardHeaderProps) {
+  const connectionProblem = CONNECTION_PROBLEMS[connectionStatus];
+
   return (
-    <div className="flex flex-col gap-3 border-b border-border pb-4">
+    // data-connection-status: los e2e esperan a "connected" antes de colaborar.
+    <div
+      className="flex flex-col gap-3 border-b border-border pb-4"
+      data-connection-status={connectionStatus}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -72,36 +68,12 @@ export function BoardHeader({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-1.5 text-xs text-text-muted">
-          <span
-            aria-hidden="true"
-            className={`h-2 w-2 rounded-full ${CONNECTION_DOT[connectionStatus]} ${
-              connectionStatus === 'reconnecting' ? 'animate-pulse' : ''
-            }`}
-          />
-          {CONNECTION_LABELS[connectionStatus]}
+      {connectionProblem && (
+        <span role="status" className="flex items-center gap-1.5 text-xs text-text-muted">
+          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${connectionProblem.dot}`} />
+          {connectionProblem.label}
         </span>
-
-        {presence.length > 0 && (
-          <div
-            className="flex items-center -space-x-2"
-            role="group"
-            aria-label="Personas conectadas a este tablero"
-          >
-            {presence.map((user) => (
-              <span
-                key={user.userId}
-                title={user.name}
-                aria-hidden="true"
-                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-bg text-[10px] font-bold text-white ${avatarColorFor(user.name || user.userId)}`}
-              >
-                {user.initials || '?'}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

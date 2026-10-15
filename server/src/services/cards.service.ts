@@ -41,7 +41,13 @@ export async function create(
 
   const last = await Card.findOne({ column: columnId }).sort({ position: -1 }).lean();
   const position = calculatePosition(last?.position, undefined);
-  const card = await Card.create({ ...input, board: boardId, column: columnId, position });
+  const card = await Card.create({
+    ...input,
+    priority: input.priority ?? undefined,
+    board: boardId,
+    column: columnId,
+    position,
+  });
 
   const columnTitle = await getColumnTitle(columnId);
   await publish({
@@ -67,7 +73,14 @@ export async function update(
 ) {
   await assertAssigneesAreMembers(boardId, input.assignees);
 
-  const card = await Card.findByIdAndUpdate(cardId, input, { new: true });
+  // priority: null significa "sin prioridad": se borra el campo en vez de
+  // guardar un null.
+  const { priority, ...rest } = input;
+  const changes =
+    priority === null
+      ? { ...rest, $unset: { priority: 1 } }
+      : { ...rest, ...(priority && { priority }) };
+  const card = await Card.findByIdAndUpdate(cardId, changes, { new: true });
   if (!card) {
     throw AppError.notFound('Tarjeta no encontrada');
   }
