@@ -65,6 +65,14 @@ function waitFor<T = unknown>(socket: ClientSocket, event: string, timeoutMs = 2
   });
 }
 
+// Ida y vuelta con ack por el mismo socket. El servidor emite los eventos de
+// tablero ANTES de responder a la petición REST y el WebSocket entrega en
+// orden, así que cuando llega este ack cualquier evento que tuviera que llegar
+// ya habría llegado. Sustituye a una espera fija para probar "no llega".
+function roundTrip(socket: ClientSocket): Promise<unknown> {
+  return new Promise((resolve) => socket.emit('board:join', { boardId: 'no-valido' }, resolve));
+}
+
 function join(socket: ClientSocket, boardId: string): Promise<unknown> {
   return new Promise((resolve) => socket.emit('board:join', { boardId }, resolve));
 }
@@ -147,7 +155,7 @@ describe('Socket.io', () => {
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .send({ title: 'Tarea' });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await roundTrip(outsiderSocket);
     expect(received).toBe(false);
   });
 
@@ -188,7 +196,7 @@ describe('Socket.io', () => {
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .send({ title: 'Tarea' });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await roundTrip(otherSocket);
     expect(receivedAfterKick).toBe(false);
   });
 
@@ -214,16 +222,77 @@ describe('Socket.io', () => {
     const otherSocket = connectAs(other.accessToken);
     await waitForConnect(otherSocket);
 
-    const presenceAfterJoin = waitFor<{ users: { userId: string }[] }>(ownerSocket, 'presence:update');
+    const presenceAfterJoin = waitFor<{ users: { userId: string }[] }>(
+      ownerSocket,
+      'presence:update',
+    );
     await join(otherSocket, board._id);
     const afterJoin = await presenceAfterJoin;
     expect(afterJoin.users.map((u) => u.userId).sort()).toEqual(
       [owner.userId, other.userId].sort(),
     );
 
-    const presenceAfterLeave = waitFor<{ users: { userId: string }[] }>(ownerSocket, 'presence:update');
+    const presenceAfterLeave = waitFor<{ users: { userId: string }[] }>(
+      ownerSocket,
+      'presence:update',
+    );
     otherSocket.disconnect();
     const afterLeave = await presenceAfterLeave;
     expect(afterLeave.users.map((u) => u.userId)).toEqual([owner.userId]);
+  });
+
+  it('board:join con un payload inválido responde INVALID_PAYLOAD', async () => {
+    const owner = await registerUser(app);
+    const socket = connectAs(owner.accessToken);
+    await waitForConnect(socket);
+    expect(await roundTrip(socket)).toEqual({ error: 'INVALID_PAYLOAD' });
+  });
+
+  it('varias pestañas del mismo usuario cuentan como una presencia hasta cerrar la última', async () => {
+    const owner = await registerUser(app);
+    const other = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken, { template: 'generic' });
+    const invite = await request(app)
+      .post(`/api/boards/${board._id}/invitations`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ email: other.email, role: 'viewer' });
+    await request(app)
+      .post('/api/invitations/accept')
+      .set('Authorization', `Bearer ${other.accessToken}`)
+      .send({ token: (invite.body.link as string).split('/invite/')[1] });
+
+    const observer = connectAs(owner.accessToken);
+    await waitForConnect(observer);
+    await join(observer, board._id);
+
+    const tabA = connectAs(other.accessToken);
+    const tabB = connectAs(other.accessToken);
+    await Promise.all([waitForConnect(tabA), waitForConnect(tabB)]);
+    await join(tabA, board._id);
+    await join(tabB, board._id);
+
+    // Cerrar una pestaña: sigue presente (una sola entrada, no duplicada).
+    const afterFirstClose = waitFor<{ users: { userId: string }[] }>(observer, 'presence:update');
+    tabA.disconnect();
+    expect((await afterFirstClose).users.map((u) => u.userId).sort()).toEqual(
+      [owner.userId, other.userId].sort(),
+    );
+
+    // board:leave desde la última pestaña: desaparece.
+    const afterLeave = waitFor<{ users: { userId: string }[] }>(observer, 'presence:update');
+    tabB.emit('board:leave', { boardId: board._id });
+    expect((await afterLeave).users.map((u) => u.userId)).toEqual([owner.userId]);
+  });
+
+  it('limita la frecuencia de board:join por socket', async () => {
+    const owner = await registerUser(app);
+    const socket = connectAs(owner.accessToken);
+    await waitForConnect(socket);
+
+    const acks = [];
+    for (let i = 0; i < 31; i += 1) {
+      acks.push(await roundTrip(socket));
+    }
+    expect(acks.at(-1)).toEqual({ error: 'RATE_LIMITED' });
   });
 });

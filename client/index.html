@@ -2,8 +2,20 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: en iPhone con notch el contenido usa toda la
+         pantalla; los márgenes de zona segura los pone index.css. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MakeIt</title>
+    <meta name="description" content="Tableros Kanban colaborativos en tiempo real" />
+    <meta name="theme-color" content="#3b66e0" />
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <link rel="icon" href="/pwa-64x64.png" type="image/png" sizes="64x64" />
+    <!-- iOS: icono y comportamiento al "Añadir a pantalla de inicio". -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MakeIt" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>
   <body>
     <div id="root"></div>

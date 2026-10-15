@@ -8,6 +8,7 @@ import { env } from '../config/env.js';
 import { setSocketServer } from '../services/realtime.service.js';
 import { addPresence, removePresence, removePresenceEverywhere, listPresence } from './presence.js';
 import type { SocketData } from './types.js';
+import { logger } from '../config/logger.js';
 
 const joinLeaveSchema = z.object({ boardId: z.string().refine(isValidObjectId) });
 
@@ -34,7 +35,8 @@ export function initSocket(httpServer: HttpServer) {
     httpServer,
     {
       path: env.SOCKET_PATH,
-      cors: { origin: env.CORS_ORIGIN, credentials: true },
+      // Mismo origen por defecto; CORS solo si se define CORS_ORIGIN.
+      ...(env.CORS_ORIGIN && { cors: { origin: env.CORS_ORIGIN, credentials: true } }),
       // Los eventos de cliente son minúsculos (solo board:join/leave, un id).
       maxHttpBufferSize: 16 * 1024,
     },
@@ -60,7 +62,8 @@ export function initSocket(httpServer: HttpServer) {
   });
 
   io.on('connection', (socket) => {
-    console.log(`[socket] conectado ${socket.id} (user ${socket.data.userId})`);
+    const log = logger.child({ socketId: socket.id, userId: socket.data.userId });
+    log.debug('socket conectado');
 
     socket.on('board:join', async (raw: unknown, ack?: (response: AckResponse) => void) => {
       if (isRateLimited(socket.id)) {
@@ -110,7 +113,7 @@ export function initSocket(httpServer: HttpServer) {
         io.to(`board:${boardId}`).emit('presence:update', { users: listPresence(boardId) });
       }
       rateBuckets.delete(socket.id);
-      console.log(`[socket] desconectado ${socket.id}`);
+      log.debug('socket desconectado');
     });
   });
 

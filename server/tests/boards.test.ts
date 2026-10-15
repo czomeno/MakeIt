@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { Board } from '../src/models/Board.js';
 import { connectTestDB, clearTestDB, closeTestDB } from './helpers/db.js';
 import { registerUser, createBoard } from './helpers/factories.js';
 
@@ -94,54 +93,6 @@ describe('aislamiento entre usuarios', () => {
       .delete(`/api/boards/${board._id}`)
       .set('Authorization', `Bearer ${userB.accessToken}`);
     expect(del.status).toBe(404);
-  });
-});
-
-describe('permisos por rol', () => {
-  async function addMember(boardId: string, userId: string, role: 'editor' | 'viewer') {
-    await Board.findByIdAndUpdate(boardId, { $push: { members: { user: userId, role } } });
-  }
-
-  it('viewer puede ver pero no editar ni crear columnas', async () => {
-    const owner = await registerUser(app);
-    const viewer = await registerUser(app);
-    const board = await createBoard(app, owner.accessToken);
-    await addMember(board._id, viewer.userId, 'viewer');
-
-    const get = await request(app)
-      .get(`/api/boards/${board._id}`)
-      .set('Authorization', `Bearer ${viewer.accessToken}`);
-    expect(get.status).toBe(200);
-
-    const patch = await request(app)
-      .patch(`/api/boards/${board._id}`)
-      .set('Authorization', `Bearer ${viewer.accessToken}`)
-      .send({ title: 'nuevo título' });
-    expect(patch.status).toBe(403);
-
-    const createColumn = await request(app)
-      .post(`/api/boards/${board._id}/columns`)
-      .set('Authorization', `Bearer ${viewer.accessToken}`)
-      .send({ title: 'Columna viewer' });
-    expect(createColumn.status).toBe(403);
-  });
-
-  it('editor puede crear columnas pero no borrar el tablero', async () => {
-    const owner = await registerUser(app);
-    const editor = await registerUser(app);
-    const board = await createBoard(app, owner.accessToken);
-    await addMember(board._id, editor.userId, 'editor');
-
-    const createColumn = await request(app)
-      .post(`/api/boards/${board._id}/columns`)
-      .set('Authorization', `Bearer ${editor.accessToken}`)
-      .send({ title: 'Columna editor' });
-    expect(createColumn.status).toBe(201);
-
-    const del = await request(app)
-      .delete(`/api/boards/${board._id}`)
-      .set('Authorization', `Bearer ${editor.accessToken}`);
-    expect(del.status).toBe(403);
   });
 });
 

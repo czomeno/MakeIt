@@ -1,13 +1,13 @@
+# Solo lo necesario para compilar; nada de secretos, tests ni artefactos.
 node_modules
 dist
+coverage
 npm-debug.log*
+*.log
 .env
 .env.*
-!.env.example
 .git
 .gitignore
 .DS_Store
-coverage
-*.log
 Dockerfile
 .dockerignore

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { connectTestDB, clearTestDB, closeTestDB } from './helpers/db.js';
 import { registerUser } from './helpers/factories.js';
+import { User } from '../src/models/User.js';
 
 const app = createApp();
 
@@ -144,5 +145,54 @@ describe('POST /api/auth/refresh y /api/auth/logout', () => {
       .post('/api/auth/refresh')
       .set('Cookie', refreshTokenCookie);
     expect(refreshResponse.status).toBe(401);
+  });
+});
+
+describe('auth: casos límite', () => {
+  it('nunca devuelve el hash de la contraseña', async () => {
+    const { email } = await registerUser(app);
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: 'password123' });
+    expect(login.status).toBe(200);
+    expect(JSON.stringify(login.body)).not.toMatch(/passwordHash|\$2[aby]\$/);
+  });
+
+  it('la cookie de refresh es httpOnly', async () => {
+    const { refreshTokenCookie } = await registerUser(app);
+    expect(refreshTokenCookie).toMatch(/HttpOnly/i);
+  });
+
+  it('rechaza /refresh con un token con firma manipulada', async () => {
+    const { refreshTokenCookie } = await registerUser(app);
+    const tampered = refreshTokenCookie.replace(/refreshToken=([^;]+)/, (_m, value: string) => {
+      return `refreshToken=${value.slice(0, -2)}xx`;
+    });
+    const response = await request(app).post('/api/auth/refresh').set('Cookie', tampered);
+    expect(response.status).toBe(401);
+  });
+
+  it('rechaza /refresh y /me si el usuario ya no existe', async () => {
+    const user = await registerUser(app);
+    await User.deleteOne({ _id: user.userId });
+
+    const refresh = await request(app)
+      .post('/api/auth/refresh')
+      .set('Cookie', user.refreshTokenCookie);
+    expect(refresh.status).toBe(401);
+
+    const me = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${user.accessToken}`);
+    expect(me.status).toBe(404);
+  });
+
+  it('logout sin cookie o con un token basura responde 204 igualmente', async () => {
+    const withoutCookie = await request(app).post('/api/auth/logout');
+    expect(withoutCookie.status).toBe(204);
+    const withGarbage = await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', 'refreshToken=basura');
+    expect(withGarbage.status).toBe(204);
   });
 });

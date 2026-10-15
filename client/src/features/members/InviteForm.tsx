@@ -21,7 +21,11 @@ const inviteSchema = z.object({
 });
 type InviteFormValues = z.infer<typeof inviteSchema>;
 
-const ROLE_LABELS: Record<BoardRole, string> = { admin: 'Admin', editor: 'Editor', viewer: 'Lector' };
+const ROLE_LABELS: Record<BoardRole, string> = {
+  admin: 'Admin',
+  editor: 'Editor',
+  viewer: 'Lector',
+};
 
 interface InviteFormProps {
   boardId: string;

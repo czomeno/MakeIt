@@ -39,16 +39,18 @@ export function AppLayout() {
   });
 
   return (
-    <div className="flex min-h-screen bg-bg text-text">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar-bg text-sidebar-text">
-        <div className="flex items-center gap-2 px-5 py-5">
+    // Por debajo de md (768 px) la barra lateral pasa a ser una barra superior
+    // compacta con los mismos elementos; en escritorio no cambia nada.
+    <div className="flex min-h-screen flex-col bg-bg text-text md:flex-row">
+      <aside className="flex shrink-0 flex-wrap items-center gap-x-1 border-b border-sidebar-border bg-sidebar-bg pb-2 text-sidebar-text md:w-64 md:flex-col md:flex-nowrap md:items-stretch md:gap-0 md:border-r md:border-b-0 md:pb-0">
+        <div className="flex items-center gap-2 px-4 py-3 md:px-5 md:py-5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">
             M
           </span>
           <span className="text-lg font-semibold">MakeIt</span>
         </div>
 
-        <nav className="flex-1 px-3">
+        <nav className="px-1 md:flex-1 md:px-3">
           <NavLink
             to="/boards"
             className={({ isActive }) =>
@@ -64,29 +66,29 @@ export function AppLayout() {
           </NavLink>
         </nav>
 
-        <div className="border-t border-sidebar-border px-3 py-3">
+        <div className="px-1 md:border-t md:border-sidebar-border md:px-3 md:py-3">
           <button
             type="button"
             onClick={openCreateBoard}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-surface px-3 py-2 text-sm font-medium text-sidebar-text transition-colors hover:border-accent"
+            className="flex items-center md:w-full justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-surface px-3 py-2 text-sm font-medium text-sidebar-text transition-colors hover:border-accent"
           >
             <span aria-hidden="true">+</span>
             Nuevo tablero
           </button>
         </div>
 
-        <div className="border-t border-sidebar-border px-4 py-4">
+        <div className="px-3 md:border-t md:border-sidebar-border md:px-4 md:py-4">
           {user && (
-            <>
+            <div className="hidden md:block">
               <p className="truncate text-sm font-medium text-sidebar-text">{user.name}</p>
               <p className="truncate text-xs text-sidebar-text-muted">{user.email}</p>
-            </>
+            </div>
           )}
           <button
             type="button"
             onClick={() => logoutMutation.mutate()}
             disabled={logoutMutation.isPending}
-            className="mt-2 text-xs text-sidebar-text-muted underline-offset-2 hover:text-sidebar-text hover:underline disabled:opacity-50"
+            className="text-xs md:mt-2 text-sidebar-text-muted underline-offset-2 hover:text-sidebar-text hover:underline disabled:opacity-50"
           >
             {logoutMutation.isPending ? 'Cerrando sesión…' : 'Cerrar sesión'}
           </button>
@@ -94,10 +96,10 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end border-b border-border bg-surface px-6 py-3">
+        <header className="flex items-center justify-end border-b border-border bg-surface px-4 py-3 md:px-6">
           <ThemeToggle />
         </header>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-6">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-4 md:px-6 md:py-6">
           <Outlet />
         </main>
       </div>

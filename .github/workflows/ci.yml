@@ -1,0 +1,233 @@
+# Red de seguridad de cada cambio: formato, lint, tipos, tests con cobertura,
+# build, imágenes de producción y e2e contra el stack real.
+#
+# Protección de rama: el ÚNICO check requerido es "ci-ok" (ver README).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Mínimo privilegio: el GITHUB_TOKEN solo puede leer el repositorio.
+permissions:
+  contents: read
+
+# Un push nuevo a la misma rama (o PR) cancela la ejecución anterior.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  HUSKY: 0 # los hooks de git no pintan nada en CI
+  FORCE_COLOR: 1
+
+jobs:
+  lint-typecheck:
+    name: Lint y tipos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+      - name: Instalar dependencias
+        run: |
+          npm ci
+          npm ci --prefix server --ignore-scripts
+          npm ci --prefix client
+      - name: Formato (Prettier)
+        run: npm run format:check
+      - name: Lint (ESLint)
+        run: npm run lint
+      - name: Tipos (tsc --noEmit)
+        run: npm run typecheck
+
+  test-server:
+    name: Tests server
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      # Binario de mongod que descarga mongodb-memory-server (~100 MB).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('server/package-lock.json') }}
+      - run: npm ci
+        working-directory: server
+      - name: Tests con cobertura (falla si baja del umbral)
+        run: npm run test:coverage
+        working-directory: server
+      - name: Resumen de cobertura
+        if: always()
+        run: node scripts/coverage-summary.mjs server >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-server
+          path: server/coverage/
+          retention-days: 14
+
+  test-client:
+    name: Tests client
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+        working-directory: client
+      - name: Tests con cobertura (falla si baja del umbral)
+        run: npm run test:coverage
+        working-directory: client
+      - name: Resumen de cobertura
+        if: always()
+        run: node scripts/coverage-summary.mjs client >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-client
+          path: client/coverage/
+          retention-days: 14
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+      - name: Instalar dependencias
+        run: |
+          npm ci --prefix server --ignore-scripts
+          npm ci --prefix client
+      - name: Build server y client
+        run: |
+          npm run build --prefix server
+          npm run build --prefix client
+
+  # Imagen única de producción (Dockerfile de la raíz: API + frontend). Nunca
+  # se publica desde aquí: eso es cosa de release.yml. Se pasa al job e2e como
+  # artefacto, así los e2e prueban exactamente lo que se despliega.
+  docker:
+    name: Imagen de producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build (caché de GitHub Actions)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: false
+          tags: makeit:ci
+          build-args: APP_VERSION=${{ github.sha }}
+          cache-from: type=gha,scope=makeit
+          cache-to: type=gha,scope=makeit,mode=max
+          outputs: type=docker,dest=${{ runner.temp }}/makeit.tar
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-makeit
+          path: ${{ runner.temp }}/makeit.tar
+          retention-days: 1
+
+  # Solo se ejecuta si todo lo anterior pasa: no gasta minutos levantando el
+  # stack si ya sabemos que algo está roto.
+  e2e:
+    name: E2E (Playwright)
+    needs: [lint-typecheck, test-server, test-client, build, docker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_IMAGE: makeit:ci
+      E2E_BASE_URL: http://localhost:8081
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image-makeit
+          path: ${{ runner.temp }}/images
+      - name: Cargar la imagen
+        run: docker load --input "$RUNNER_TEMP/images/makeit.tar"
+      - name: Levantar el stack e2e (Mongo efímero)
+        run: docker compose -f docker-compose.e2e.yml up -d --no-build --wait
+      - run: npm ci
+      - name: Caché de navegadores de Playwright
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Instalar Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Dependencias del sistema de Chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Tests e2e
+        run: npm run test:e2e
+      - name: Logs del stack
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --no-color --timestamps
+      # Trazas, capturas y vídeos solo existen para los tests que fallan.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-traces
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+      - name: Parar el stack
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
+
+  # Único check requerido en la protección de rama: resume todos los demás.
+  # Así añadir o renombrar jobs no obliga a tocar la configuración de GitHub.
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [lint-typecheck, test-server, test-client, build, docker, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Comprobar que todos los jobs han pasado
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Resultados: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::Al menos un job no ha terminado con éxito ($result)."
+              exit 1
+            fi
+          done

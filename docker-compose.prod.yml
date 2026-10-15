@@ -1,0 +1,71 @@
+# ALTERNATIVA VPS (solo de referencia; la ruta principal es Render, ver
+# DEPLOY.md). Misma imagen única que Render, con Caddy delante para HTTPS
+# automático y WebSocket. No se ejecuta nada desde el repositorio.
+#
+#   cp .env.production.example .env.production   # rellena los valores
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Con Mongo en Atlas basta con eso. Para usar un Mongo en el propio VPS
+# (con autenticación y volumen), añade el perfil:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production --profile mongo up -d
+
+name: makeit
+
+services:
+  app:
+    # Publicada por .github/workflows/release.yml. Para construirla en el VPS,
+    # cambia "image" por "build: ." .
+    image: ghcr.io/czomeno/makeit:${MAKEIT_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      SERVE_CLIENT: 'true'
+      TRUST_PROXY: 1 # Caddy es el único proxy delante
+      MONGO_URI: ${MONGO_URI:?Define MONGO_URI}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Define JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Define JWT_REFRESH_SECRET}
+      APP_BASE_URL: ${APP_BASE_URL:?Define APP_BASE_URL (https://tu-dominio)}
+      APP_NAME: ${APP_NAME:-MakeIt}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      INVITATION_EXPIRES_DAYS: ${INVITATION_EXPIRES_DAYS:-7}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+    # Margen para el apagado ordenado antes del SIGKILL.
+    stop_grace_period: 20s
+    # Sin "ports": solo se accede a través de Caddy.
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?Define DOMAIN (el dominio que apunta a este servidor)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificados: NO lo borres o Caddy los pedirá de nuevo
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # Opcional (perfil "mongo"): Mongo en el propio VPS, con usuario y volumen.
+  mongo:
+    image: mongo:7.0
+    profiles: [mongo]
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-makeit}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Define MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    # Sin "ports": solo accesible desde la red interna de Compose.
+
+volumes:
+  caddy_data:
+  caddy_config:
+  mongo-data:

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalProps {
@@ -15,6 +15,10 @@ const FOCUSABLE_SELECTOR =
 // foco con Tab, cierra con Escape y devuelve el foco a quien lo abrió.
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // Id único por instancia: con dos modales apilados (p. ej. detalle de
+  // tarjeta + confirmación de borrado) un id fijo se duplicaría y el lector
+  // de pantalla anunciaría el diálogo con el título equivocado.
+  const titleId = useId();
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -41,8 +45,14 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     // mutación que vuelve a renderizar el contenido, el foco puede acabar
     // fuera del modal (p. ej. tras un page.select() o un re-render del
     // <select>), y entonces Escape dejaría de burbujear hasta el contenedor.
+    // Con modales apilados solo cierra el de encima: cada portal se añade al
+    // final de <body>, así que el último diálogo modal es el más reciente.
     function handleEscape(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (dialogs[dialogs.length - 1] === containerRef.current) {
         onClose();
       }
     }
@@ -94,13 +104,13 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         ref={containerRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-surface text-text shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 id="modal-title" className="text-base font-semibold">
+          <h2 id={titleId} className="text-base font-semibold">
             {title}
           </h2>
           <button

@@ -12,6 +12,12 @@ const DEMO_EMAIL = 'demo@makeit.test';
 const DEMO_PASSWORD = 'demo123456';
 
 async function seed(): Promise<void> {
+  // Contraseña fija en el código: solo para desarrollo. En producción se usa
+  // `npm run seed:demo`, que la lee de DEMO_USER_PASSWORD.
+  if (env.NODE_ENV === 'production') {
+    console.error('npm run seed es solo para desarrollo. En producción usa npm run seed:demo.');
+    process.exit(1);
+  }
   await connectDB(env.MONGO_URI);
 
   let user = await User.findOne({ email: DEMO_EMAIL });
@@ -41,7 +47,11 @@ async function seed(): Promise<void> {
     await cardsService.create(
       board._id.toString(),
       primeraColumna._id.toString(),
-      { title: 'Candidatura de ejemplo', company: 'Acme Inc.', jobUrl: 'https://example.com/empleos/1' },
+      {
+        title: 'Candidatura de ejemplo',
+        company: 'Acme Inc.',
+        jobUrl: 'https://example.com/empleos/1',
+      },
       user._id.toString(),
     );
     console.log(`Columna extra "${column.title}" y tarjeta de ejemplo creadas`);

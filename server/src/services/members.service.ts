@@ -63,7 +63,12 @@ export async function updateRole(
   await board.save();
 
   const user = await User.findById(targetUserId).select('name email').lean();
-  const dto: MemberDTO = { userId: targetUserId, role, name: user?.name ?? '', email: user?.email ?? '' };
+  const dto: MemberDTO = {
+    userId: targetUserId,
+    role,
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+  };
 
   await publish({
     board: boardId,
@@ -78,7 +83,11 @@ export async function updateRole(
   return dto;
 }
 
-export async function remove(boardId: string, targetUserId: string, actorId: string): Promise<void> {
+export async function remove(
+  boardId: string,
+  targetUserId: string,
+  actorId: string,
+): Promise<void> {
   const board = await Board.findById(boardId);
   if (!board) {
     throw AppError.notFound('Tablero no encontrado');

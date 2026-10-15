@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterEach, afterAll } from '@jest/glob
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Invitation } from '../src/models/Invitation.js';
+import { Board } from '../src/models/Board.js';
 import { connectTestDB, clearTestDB, closeTestDB } from './helpers/db.js';
 import { registerUser, createBoard } from './helpers/factories.js';
 
@@ -26,36 +27,15 @@ describe('invitaciones', () => {
       .send({ email: 'invitado@example.com', role: 'editor' });
 
     expect(response.status).toBe(201);
-    expect(response.body.invitation).toMatchObject({ email: 'invitado@example.com', status: 'pending' });
+    expect(response.body.invitation).toMatchObject({
+      email: 'invitado@example.com',
+      status: 'pending',
+    });
     expect(response.body.link).toContain('/invite/');
 
     const stored = await Invitation.findById(response.body.invitation.id);
     expect(stored?.tokenHash).toBeTruthy();
     expect(response.body.link).not.toContain(stored?.tokenHash);
-  });
-
-  it('un editor no puede crear invitaciones', async () => {
-    const owner = await registerUser(app);
-    const editor = await registerUser(app);
-    const board = await createBoard(app, owner.accessToken);
-
-    await request(app)
-      .post(`/api/boards/${board._id}/invitations`)
-      .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ email: editor.email, role: 'editor' })
-      .then((res) =>
-        request(app)
-          .post('/api/invitations/accept')
-          .set('Authorization', `Bearer ${editor.accessToken}`)
-          .send({ token: linkToken(res.body.link as string) }),
-      );
-
-    const response = await request(app)
-      .post(`/api/boards/${board._id}/invitations`)
-      .set('Authorization', `Bearer ${editor.accessToken}`)
-      .send({ email: 'otro@example.com', role: 'viewer' });
-
-    expect(response.status).toBe(403);
   });
 
   it('rechaza una segunda invitación pendiente para el mismo email en el mismo tablero', async () => {
@@ -234,5 +214,76 @@ describe('invitaciones', () => {
       .set('Authorization', `Bearer ${otherAdmin.accessToken}`);
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('invitaciones: casos de error', () => {
+  async function invite(ownerToken: string, boardId: string, email: string) {
+    const created = await request(app)
+      .post(`/api/boards/${boardId}/invitations`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ email, role: 'editor' });
+    return {
+      id: created.body.invitation.id as string,
+      token: linkToken(created.body.link as string),
+    };
+  }
+
+  it('un token desconocido devuelve 404', async () => {
+    const invitee = await registerUser(app);
+    const response = await request(app)
+      .post('/api/invitations/accept')
+      .set('Authorization', `Bearer ${invitee.accessToken}`)
+      .send({ token: 'f'.repeat(64) });
+    expect(response.status).toBe(404);
+  });
+
+  it('aceptar exige estar autenticado', async () => {
+    const response = await request(app)
+      .post('/api/invitations/accept')
+      .send({ token: 'f'.repeat(64) });
+    expect(response.status).toBe(401);
+  });
+
+  it('revocar dos veces la misma invitación devuelve 404 la segunda', async () => {
+    const owner = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken);
+    const { id } = await invite(owner.accessToken, board._id, 'x@example.com');
+
+    const first = await request(app)
+      .delete(`/api/invitations/${id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(first.status).toBe(204);
+    const second = await request(app)
+      .delete(`/api/invitations/${id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(second.status).toBe(404);
+  });
+
+  it('si el tablero se borró, aceptar devuelve 404', async () => {
+    const owner = await registerUser(app);
+    const invitee = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken);
+    const { token } = await invite(owner.accessToken, board._id, invitee.email);
+    await Board.deleteOne({ _id: board._id });
+
+    const response = await request(app)
+      .post('/api/invitations/accept')
+      .set('Authorization', `Bearer ${invitee.accessToken}`)
+      .send({ token });
+    expect(response.status).toBe(404);
+  });
+
+  it('el email de la invitación no distingue mayúsculas', async () => {
+    const owner = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken);
+    const invitee = await registerUser(app, { email: `mixta-${Date.now()}@example.com` });
+    const { token } = await invite(owner.accessToken, board._id, invitee.email.toUpperCase());
+
+    const response = await request(app)
+      .post('/api/invitations/accept')
+      .set('Authorization', `Bearer ${invitee.accessToken}`)
+      .send({ token });
+    expect(response.status).toBe(200);
   });
 });

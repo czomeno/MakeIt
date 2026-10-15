@@ -93,11 +93,15 @@ export function useBoardSocket(
 
     function onCardCreated(payload: SocketEventPayloads['card:created']) {
       if (isEcho(payload.actorId, payload.clientId)) return;
-      updateBoard((board) => upsertCard(board, payload.card as BoardWithContent['columns'][number]['cards'][number]));
+      updateBoard((board) =>
+        upsertCard(board, payload.card as BoardWithContent['columns'][number]['cards'][number]),
+      );
     }
     function onCardUpdated(payload: SocketEventPayloads['card:updated']) {
       if (isEcho(payload.actorId, payload.clientId)) return;
-      updateBoard((board) => upsertCard(board, payload.card as BoardWithContent['columns'][number]['cards'][number]));
+      updateBoard((board) =>
+        upsertCard(board, payload.card as BoardWithContent['columns'][number]['cards'][number]),
+      );
     }
     function onCardMoved(payload: SocketEventPayloads['card:moved']) {
       if (isEcho(payload.actorId, payload.clientId)) return;
@@ -116,11 +120,15 @@ export function useBoardSocket(
     }
     function onColumnCreated(payload: SocketEventPayloads['column:created']) {
       if (isEcho(payload.actorId, payload.clientId)) return;
-      updateBoard((board) => upsertColumn(board, payload.column as BoardWithContent['columns'][number]));
+      updateBoard((board) =>
+        upsertColumn(board, payload.column as BoardWithContent['columns'][number]),
+      );
     }
     function onColumnUpdated(payload: SocketEventPayloads['column:updated']) {
       if (isEcho(payload.actorId, payload.clientId)) return;
-      updateBoard((board) => upsertColumn(board, payload.column as BoardWithContent['columns'][number]));
+      updateBoard((board) =>
+        upsertColumn(board, payload.column as BoardWithContent['columns'][number]),
+      );
     }
     function onColumnMoved(payload: SocketEventPayloads['column:moved']) {
       if (isEcho(payload.actorId, payload.clientId)) return;

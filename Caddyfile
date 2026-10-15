@@ -1,0 +1,19 @@
+# ALTERNATIVA VPS (referencia): Caddy delante de la imagen única de MakeIt.
+# - HTTPS automático: Caddy pide y renueva el certificado de {$DOMAIN} solo
+#   (el DNS del dominio debe apuntar ya al VPS y los puertos 80/443 abiertos).
+# - WebSocket: reverse_proxy lo soporta sin configuración extra.
+# - Añade X-Forwarded-For, por eso la app usa TRUST_PROXY=1.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy app:4000 {
+		# Si la app se está reiniciando, espera un poco antes de devolver 502.
+		lb_try_duration 10s
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -8,6 +8,7 @@ export interface CardInput {
   dueDate?: string;
   company?: string;
   jobUrl?: string;
+  assignees?: string[];
 }
 
 export interface MoveCardInput {

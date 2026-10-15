@@ -11,10 +11,7 @@ describe('contrato de eventos de socket', () => {
   it('server/src/socket/events.ts y client/src/socket/events.ts son idénticos', () => {
     const dir = path.dirname(fileURLToPath(import.meta.url));
     const serverFile = readFileSync(path.resolve(dir, '../src/socket/events.ts'), 'utf8');
-    const clientFile = readFileSync(
-      path.resolve(dir, '../../client/src/socket/events.ts'),
-      'utf8',
-    );
+    const clientFile = readFileSync(path.resolve(dir, '../../client/src/socket/events.ts'), 'utf8');
     expect(clientFile).toBe(serverFile);
   });
 });

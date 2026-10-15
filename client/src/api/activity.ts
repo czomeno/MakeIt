@@ -14,7 +14,10 @@ function toQueryString(query: ActivityQuery): string {
   return qs ? `?${qs}` : '';
 }
 
-export function getBoardActivity(boardId: string, query: ActivityQuery = {}): Promise<ActivityPage> {
+export function getBoardActivity(
+  boardId: string,
+  query: ActivityQuery = {},
+): Promise<ActivityPage> {
   return apiRequest<ActivityPage>(`/boards/${boardId}/activity${toQueryString(query)}`);
 }
 

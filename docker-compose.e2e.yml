@@ -1,0 +1,56 @@
+# Stack efímero para los tests e2e de Playwright: la IMAGEN ÚNICA de
+# producción (API + Socket.io + frontend, mismo origen, lo mismo que se
+# despliega en Render) y un Mongo sin volumen (cada "up" empieza vacío).
+# Lo levanta y lo tira playwright.config.ts / el job e2e:
+#
+#   npm run test:e2e
+#
+# Puerto distinto a los de desarrollo para poder tener ambos levantados.
+
+name: makeit-e2e
+
+services:
+  mongo:
+    image: mongo:7.0
+    tmpfs:
+      - /data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build:
+      context: .
+    image: ${APP_IMAGE:-makeit:prod}
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      MONGO_URI: mongodb://mongo:27017/makeit-e2e
+      APP_BASE_URL: http://localhost:${E2E_PORT:-8081}
+      # Secretos SOLO de test (largos y distintos para pasar la validación de
+      # producción). Este stack nunca es accesible desde fuera.
+      JWT_ACCESS_SECRET: e2e-only-access-7f3c9a1d5b8e2f4a6c0d9b7e3a1f5c8d
+      JWT_REFRESH_SECRET: e2e-only-refresh-2b6d8f0a4c1e9b3d7f5a8c2e6b0d4f1a
+      BCRYPT_ROUNDS: 4
+      # La suite crea muchas sesiones desde la misma IP en pocos segundos.
+      AUTH_RATE_LIMIT_MAX: 10000
+      INVITATIONS_RATE_LIMIT_MAX: 10000
+      LOG_LEVEL: warn
+    ports:
+      - '${E2E_PORT:-8081}:4000'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/api/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30

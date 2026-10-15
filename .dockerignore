@@ -1,0 +1,20 @@
+# Contexto de la imagen única (Dockerfile de la raíz): solo el código de
+# client/ y server/. Nada de secretos, dependencias locales, tests ni artefactos.
+*
+!client
+!server
+
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/*.log
+**/.DS_Store
+**/Dockerfile
+**/.dockerignore
+
+server/tests
+client/src/test
+client/src/**/*.test.ts
+client/src/**/*.test.tsx

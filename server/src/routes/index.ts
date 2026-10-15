@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import healthRoutes from './health.routes.js';
+import { healthRouter, readyRouter } from './health.routes.js';
 import authRoutes from './auth.routes.js';
 import boardsRoutes from './boards.routes.js';
 import columnsRoutes from './columns.routes.js';
@@ -8,7 +8,8 @@ import invitationsRoutes from './invitations.routes.js';
 
 const router = Router();
 
-router.use('/health', healthRoutes);
+router.use('/health', healthRouter);
+router.use('/ready', readyRouter);
 router.use('/auth', authRoutes);
 router.use('/boards', boardsRoutes);
 router.use('/columns', columnsRoutes);

@@ -9,8 +9,18 @@ import { Toaster } from '../../components/Toaster';
 import { useAuthStore } from '../../stores/authStore';
 import type { Member } from '../../types/api';
 
-const OWNER: Member = { userId: 'user-owner', role: 'admin', name: 'Owner', email: 'owner@example.com' };
-const EDITOR: Member = { userId: 'user-editor', role: 'editor', name: 'Edi Tor', email: 'edi@example.com' };
+const OWNER: Member = {
+  userId: 'user-owner',
+  role: 'admin',
+  name: 'Owner',
+  email: 'owner@example.com',
+};
+const EDITOR: Member = {
+  userId: 'user-editor',
+  role: 'editor',
+  name: 'Edi Tor',
+  email: 'edi@example.com',
+};
 
 function signInAs(userId: string) {
   useAuthStore.setState({

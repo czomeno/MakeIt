@@ -76,7 +76,14 @@ describe('InviteForm', () => {
 
   it('revoca una invitación pendiente tras confirmar', async () => {
     mockInvitations([
-      { id: 'inv-1', email: 'pendiente@example.com', role: 'editor', status: 'pending', expiresAt: '2024-12-31T00:00:00.000Z', createdAt: '2024-01-01T00:00:00.000Z' },
+      {
+        id: 'inv-1',
+        email: 'pendiente@example.com',
+        role: 'editor',
+        status: 'pending',
+        expiresAt: '2024-12-31T00:00:00.000Z',
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
     ]);
     const user = userEvent.setup();
 

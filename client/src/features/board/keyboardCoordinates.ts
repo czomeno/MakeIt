@@ -37,6 +37,18 @@ export const boardKeyboardCoordinates: KeyboardCoordinateGetter = (event, { cont
       continue;
     }
 
+    // La columna que contiene a la tarjeta (su propio contenedor) nunca es un
+    // destino: su centro suele quedar por debajo de la tarjeta y "↓" se
+    // quedaría en la misma columna en vez de saltar a la siguiente.
+    const containsActive =
+      activeCenter.x >= rect.left &&
+      activeCenter.x <= rect.left + rect.width &&
+      activeCenter.y >= rect.top &&
+      activeCenter.y <= rect.top + rect.height;
+    if (containsActive) {
+      continue;
+    }
+
     const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 
     if (horizontal) {
@@ -47,7 +59,13 @@ export const boardKeyboardCoordinates: KeyboardCoordinateGetter = (event, { cont
         continue;
       }
     } else {
-      const correctDirection = forward ? center.y > activeCenter.y : center.y < activeCenter.y;
+      // Otra fila de verdad: más de media tarjeta por encima/debajo. Con un
+      // simple "más abajo", una tarjeta vecina de la MISMA fila desplazada
+      // una fracción de píxel (transformaciones de dnd-kit) ganaba por cercanía.
+      const halfHeight = collisionRect.height / 2;
+      const correctDirection = forward
+        ? center.y > activeCenter.y + halfHeight
+        : center.y < activeCenter.y - halfHeight;
       if (!correctDirection) {
         continue;
       }

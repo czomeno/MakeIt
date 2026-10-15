@@ -1,0 +1,62 @@
+# Actualizaciones semanales y agrupadas: pocos PR, fáciles de revisar. Las
+# mayores (breaking) llegan en PR individuales para revisarlas con calma.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directories: ['/', '/server', '/client']
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    groups:
+      produccion:
+        dependency-type: production
+        update-types: [minor, patch]
+      desarrollo:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'ci(deps)'
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directories: ['/', '/server', '/client']
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'chore(docker)'
+    groups:
+      imagenes-base:
+        patterns: ['*']
+
+  - package-ecosystem: docker-compose
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'chore(docker)'
+    groups:
+      compose:
+        patterns: ['*']

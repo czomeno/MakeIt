@@ -10,6 +10,8 @@ import { bootstrapSession } from './api/auth';
 import { AppRouter } from './routes/AppRouter';
 import { Toaster } from './components/Toaster';
 import { Spinner } from './components/Spinner';
+import { ServerWakeBanner } from './components/ServerWakeBanner';
+import { UpdatePrompt } from './components/UpdatePrompt';
 
 export default function App() {
   const status = useAuthStore((state) => state.status);
@@ -29,6 +31,8 @@ export default function App() {
           <AppRouter />
         )}
         <Toaster />
+        <ServerWakeBanner />
+        <UpdatePrompt />
       </BrowserRouter>
     </QueryClientProvider>
   );

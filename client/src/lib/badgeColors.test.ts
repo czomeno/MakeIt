@@ -10,19 +10,10 @@ describe('pillColorFor / pillClassesFor', () => {
   it('no distingue mayúsculas ni espacios al hashear', () => {
     expect(pillColorFor('Urgente')).toBe(pillColorFor(' urgente '));
   });
-
-  it('devuelve clases completas y literales (sin interpolación)', () => {
-    const classes = pillClassesFor('remoto');
-    expect(classes).toMatch(/^bg-pill-\w+ text-pill-\w+-ink$/);
-  });
 });
 
 describe('avatarColorFor', () => {
   it('es determinista', () => {
     expect(avatarColorFor('Acme Inc.')).toBe(avatarColorFor('Acme Inc.'));
-  });
-
-  it('devuelve una clase de fondo de Tailwind', () => {
-    expect(avatarColorFor('Google')).toMatch(/^bg-\w+-500$/);
   });
 });

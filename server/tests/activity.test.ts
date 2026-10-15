@@ -44,9 +44,7 @@ describe('actividad', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ columnId: enCurso!._id });
 
-    await request(app)
-      .delete(`/api/cards/${cardId}`)
-      .set('Authorization', `Bearer ${accessToken}`);
+    await request(app).delete(`/api/cards/${cardId}`).set('Authorization', `Bearer ${accessToken}`);
 
     const response = await request(app)
       .get(`/api/boards/${board._id}/activity`)
@@ -161,9 +159,9 @@ describe('actividad', () => {
       .set('Authorization', `Bearer ${accessToken}`);
     expect(firstPage.body.items).toHaveLength(2);
     expect(firstPage.body.nextCursor).not.toBeNull();
-    expect(firstPage.body.items.map((i: { data: { cardTitle: string } }) => i.data.cardTitle)).toEqual(
-      ['C', 'B'],
-    );
+    expect(
+      firstPage.body.items.map((i: { data: { cardTitle: string } }) => i.data.cardTitle),
+    ).toEqual(['C', 'B']);
 
     const secondPage = await request(app)
       .get(`/api/boards/${board._id}/activity`)

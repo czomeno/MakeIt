@@ -61,8 +61,9 @@ seed: ## Crea el usuario y tablero demo dentro del contenedor de la API
 health: ## Comprueba GET /api/health (estado de la API y de la base de datos)
 	curl -sf http://localhost:4000/api/health | python3 -m json.tool
 
-smoke: ## Flujo real contra la API en Docker: registro -> login -> tablero -> tarjeta -> mover
-	./scripts/smoke-test.sh
+smoke: ## Smoke test post-despliegue: make smoke URL=https://... (necesita SMOKE_EMAIL/SMOKE_PASSWORD)
+	@test -n "$(URL)" || (echo "Uso: make smoke URL=https://tu-app (ver DEPLOY.md)"; exit 2)
+	npm run smoke -- $(URL)
 
 open: ## Abre el cliente en el navegador (macOS)
 	open http://localhost:5173
@@ -71,7 +72,10 @@ open: ## Abre el cliente en el navegador (macOS)
 # Instalación y desarrollo local (sin Docker)
 # ============================================================
 
-install: server-install client-install ## npm install en server y client
+install: ## npm install en la raíz (hooks de git), server y client
+	npm install
+	cd server && npm install
+	cd client && npm install
 
 server-install: ## npm install solo en /server
 	cd server && npm install
@@ -101,10 +105,11 @@ client-build: ## Compila el cliente (tipos + bundle) a client/dist
 	cd client && npm run build
 
 # ============================================================
-# Calidad: lint, formato, tests
+# Calidad: lint, formato, tipos, tests (envuelven los scripts de la raíz)
 # ============================================================
 
-lint: server-lint client-lint ## ESLint en server y client
+lint: ## ESLint en server y client
+	npm run lint
 
 server-lint: ## ESLint solo en /server
 	cd server && npm run lint
@@ -112,29 +117,32 @@ server-lint: ## ESLint solo en /server
 client-lint: ## ESLint solo en /client
 	cd client && npm run lint
 
-format: server-format client-format ## Formatea server y client con Prettier (escribe cambios)
+typecheck: ## tsc --noEmit en server y client
+	npm run typecheck
 
-server-format: ## Prettier --write solo en /server
-	cd server && npm run format
+format: ## Formatea todo el repositorio con Prettier (escribe cambios)
+	npm run format
 
-client-format: ## Prettier --write solo en /client
-	cd client && npm run format
+format-check: ## Comprueba el formato sin modificar archivos
+	npm run format:check
 
-format-check: server-format-check client-format-check ## Comprueba el formato sin modificar archivos
+test: ## Tests unitarios/integración de server y client (sin Docker)
+	npm test
 
-server-format-check: ## Prettier --check solo en /server
-	cd server && npm run format:check
-
-client-format-check: ## Prettier --check solo en /client
-	cd client && npm run format:check
-
-test: ## Tests de la API (Jest + Supertest + Mongo en memoria, no toca Docker)
+test-server: ## Tests de la API (Jest + Supertest + Mongo en memoria)
 	cd server && npm test
 
-test-coverage: ## Tests de la API con informe de cobertura
-	cd server && npm run test:coverage
+test-client: ## Tests del cliente (Vitest + Testing Library)
+	cd client && npm test
 
-check: lint build test ## Lint + build + tests de todo el proyecto (antes de un commit grande)
+test-coverage: ## Tests con cobertura y umbrales mínimos en server y client
+	npm run test:coverage
+
+test-e2e: ## Tests e2e de Playwright contra el stack de docker-compose.e2e.yml
+	npm run test:e2e
+
+check: ## Formato + lint + tipos + tests unitarios (lo mismo que el CI, sin e2e)
+	npm run check
 
 # ============================================================
 # Limpieza
@@ -142,7 +150,8 @@ check: lint build test ## Lint + build + tests de todo el proyecto (antes de un 
 
 clean: ## Borra node_modules, dist y coverage de server y client (no toca Docker)
 	rm -rf server/node_modules server/dist server/coverage
-	rm -rf client/node_modules client/dist
+	rm -rf client/node_modules client/dist client/coverage
+	rm -rf node_modules playwright-report test-results
 
 # ============================================================
 # Ayuda
@@ -155,6 +164,6 @@ help: ## Muestra esta ayuda
 	shell-api shell-client mongosh seed health smoke open \
 	install server-install client-install server-dev client-dev seed-local \
 	build server-build client-build \
-	lint server-lint client-lint format server-format client-format \
-	format-check server-format-check client-format-check test test-coverage check \
+	lint server-lint client-lint typecheck format format-check \
+	test test-server test-client test-coverage test-e2e check \
 	clean help

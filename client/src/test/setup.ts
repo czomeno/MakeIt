@@ -5,6 +5,8 @@ import { server } from './server';
 import { fakeSocket } from './socketMock';
 import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
+import { useToastStore } from '../stores/toastStore';
+import { useConnectivityStore } from '../stores/connectivityStore';
 
 // jsdom no puede abrir sockets reales (y no debería intentarlo en tests):
 // cualquier `io(...)` de socket.io-client, en cualquier archivo, recibe este
@@ -20,6 +22,8 @@ afterEach(() => {
   // Zustand es un singleton de módulo: se resetea a mano entre tests.
   useAuthStore.setState({ status: 'unauthenticated', user: null, accessToken: null });
   useUiStore.setState({ isCreateBoardOpen: false });
+  useToastStore.setState({ toasts: [] });
+  useConnectivityStore.setState({ slowRequests: 0 });
 });
 
 afterAll(() => server.close());

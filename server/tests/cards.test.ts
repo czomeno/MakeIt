@@ -207,17 +207,60 @@ describe('tarjetas', () => {
     expect(positions).toEqual([1000, 2000, 3000]);
   });
 
-  it('un no-miembro recibe 404 al intentar crear una tarjeta', async () => {
-    const owner = await registerUser(app);
-    const intruder = await registerUser(app);
-    const board = await createBoard(app, owner.accessToken, { template: 'generic' });
-    const [first] = await getColumns(owner.accessToken, board._id);
+  it('rechaza una tarjeta vecina que no está en la columna destino', async () => {
+    const { accessToken } = await registerUser(app);
+    const board = await createBoard(app, accessToken, { template: 'generic' });
+    const [porHacer, enCurso] = await getColumns(accessToken, board._id);
+    const inFirst = await request(app)
+      .post(`/api/columns/${porHacer!._id}/cards`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'En la primera' });
+    const moving = await request(app)
+      .post(`/api/columns/${porHacer!._id}/cards`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Movida' });
 
-    const response = await request(app)
-      .post(`/api/columns/${first!._id}/cards`)
-      .set('Authorization', `Bearer ${intruder.accessToken}`)
-      .send({ title: 'Intrusa' });
+    for (const neighbour of ['prevCardId', 'nextCardId']) {
+      const response = await request(app)
+        .patch(`/api/cards/${moving.body.card._id}/move`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ columnId: enCurso!._id, [neighbour]: inFirst.body.card._id });
+      expect(response.status).toBe(400);
+    }
+  });
 
-    expect(response.status).toBe(404);
+  it('muchas inserciones seguidas en el mismo hueco mantienen el orden (bisección + rebalanceo)', async () => {
+    const { accessToken } = await registerUser(app);
+    const board = await createBoard(app, accessToken, { template: 'generic' });
+    const [column] = await getColumns(accessToken, board._id);
+    const create = async (title: string) =>
+      (
+        await request(app)
+          .post(`/api/columns/${column!._id}/cards`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ title })
+      ).body.card._id as string;
+
+    const first = await create('primera');
+    const last = await create('última');
+
+    // Cada nueva tarjeta se mete justo detrás de "primera": el hueco se
+    // divide a la mitad cada vez hasta forzar al menos un rebalanceo.
+    const inserted: string[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const id = await create(`t${i}`);
+      const response = await request(app)
+        .patch(`/api/cards/${id}/move`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ columnId: column!._id, prevCardId: first, nextCardId: inserted.at(-1) ?? last });
+      expect(response.status).toBe(200);
+      inserted.push(id);
+    }
+
+    const [after] = await getColumns(accessToken, board._id);
+    const ids = after!.cards.map((card) => card._id);
+    expect(ids).toEqual([first, ...[...inserted].reverse(), last]);
+    const positions = after!.cards.map((card) => card.position);
+    expect(new Set(positions).size).toBe(positions.length);
   });
 });

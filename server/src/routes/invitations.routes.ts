@@ -14,7 +14,7 @@ import * as invitationsController from '../controllers/invitations.controller.js
 // invitar en bucle), así que comparten el mismo límite por IP.
 export const invitationsLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: env.INVITATIONS_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => env.NODE_ENV === 'test',

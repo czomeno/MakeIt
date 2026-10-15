@@ -40,7 +40,9 @@ export function ActivityPanel({ boardId, enabled }: ActivityPanelProps) {
         {items.map((item) => (
           <li key={item._id} className="text-sm text-text">
             {activityMessage(item)}
-            <span className="ml-2 text-xs text-text-muted">{relativeTimeFromNow(item.createdAt)}</span>
+            <span className="ml-2 text-xs text-text-muted">
+              {relativeTimeFromNow(item.createdAt)}
+            </span>
           </li>
         ))}
       </ul>

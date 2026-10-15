@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/authStore';
+import { useConnectivityStore } from '../stores/connectivityStore';
 import { TAB_ID } from '../socket/clientId';
 import type { ApiErrorBody } from '../types/api';
 
@@ -20,6 +21,68 @@ interface RequestOptions {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
+}
+
+// Arranque en frío (plan gratuito de Render): tras un rato sin tráfico el
+// servidor se duerme y la primera petición puede tardar hasta un minuto, o
+// recibir un 502/503/504 del proxy mientras arranca. En vez de fallar:
+//  - si una petición tarda más de `slowAfterMs`, se avisa (ServerWakeBanner);
+//  - 502/503/504 se reintentan con espera creciente durante `maxWaitMs` (el
+//    proxy respondió, la petición no llegó a la app: es seguro reintentar
+//    incluso un POST);
+//  - un error de red solo se reintenta en GET (en una mutación no sabemos si
+//    llegó a aplicarse).
+// Exportado para que los tests puedan acortar los tiempos.
+export const wakeConfig = {
+  slowAfterMs: 2500,
+  maxWaitMs: 60_000,
+  retryDelaysMs: [1000, 2000, 4000, 5000],
+};
+
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+function wait(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    });
+  });
+}
+
+async function fetchWaitingForServer(url: string, init: RequestInit): Promise<Response> {
+  const startedAt = Date.now();
+  let markedSlow = false;
+  const slowTimer = setTimeout(() => {
+    markedSlow = true;
+    useConnectivityStore.getState().beginSlowRequest();
+  }, wakeConfig.slowAfterMs);
+
+  try {
+    for (let attempt = 0; ; attempt += 1) {
+      const canRetry = Date.now() - startedAt < wakeConfig.maxWaitMs;
+      const delay =
+        wakeConfig.retryDelaysMs[Math.min(attempt, wakeConfig.retryDelaysMs.length - 1)] ?? 1000;
+      try {
+        const response = await fetch(url, init);
+        if (!RETRYABLE_STATUS.has(response.status) || !canRetry) {
+          return response;
+        }
+      } catch (error) {
+        const isGet = (init.method ?? 'GET') === 'GET';
+        if (init.signal?.aborted || !isGet || !canRetry) {
+          throw error;
+        }
+      }
+      await wait(delay, init.signal ?? undefined);
+    }
+  } finally {
+    clearTimeout(slowTimer);
+    if (markedSlow) {
+      useConnectivityStore.getState().endSlowRequest();
+    }
+  }
 }
 
 function isApiErrorBody(value: unknown): value is ApiErrorBody {
@@ -45,7 +108,7 @@ export async function rawRequest<T>(path: string, options: RequestOptions = {}):
     headers['X-Mutation-Id'] = TAB_ID;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetchWaitingForServer(`${BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
     credentials: 'include', // cookie httpOnly del refresh token

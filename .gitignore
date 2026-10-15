@@ -12,6 +12,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Volúmenes y datos de contenedores
 data/
@@ -27,8 +28,11 @@ logs/
 .vite/
 .eslintcache
 
-# Cobertura de tests
+# Cobertura de tests e informes de Playwright
 coverage/
+playwright-report/
+test-results/
+blob-report/
 
 # Sistema operativo
 .DS_Store

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
 import { createTestQueryClient } from '../../test/test-utils';
+import { deferred } from '../../test/deferred';
 import { useMoveCardMutation } from './hooks';
 import { boardsKeys } from '../boards/hooks';
 import type { BoardWithContent, Card } from '../../types/api';
@@ -67,9 +68,10 @@ describe('useMoveCardMutation — optimismo', () => {
     const board = makeBoard();
     queryClient.setQueryData(boardsKeys.detail(board._id), board);
 
+    const response = deferred();
     server.use(
       http.patch('/api/cards/:id/move', async ({ params }) => {
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        await response.promise;
         return HttpResponse.json({ card: { ...makeCard(String(params.id), 'col-2', 1000) } });
       }),
     );
@@ -86,14 +88,16 @@ describe('useMoveCardMutation — optimismo', () => {
       });
     });
 
-    // Al instante (antes de que la petición en curso resuelva): onMutate ya
-    // aplicó el cambio a la cache.
+    // Con la respuesta del servidor aún retenida, onMutate ya aplicó el
+    // cambio a la cache: eso es lo que demuestra el optimismo.
     await waitFor(() => {
       const data = queryClient.getQueryData<BoardWithContent>(boardsKeys.detail(board._id));
       expect(data?.columns[1]?.cards.map((card) => card._id)).toEqual(['a']);
       expect(data?.columns[0]?.cards).toEqual([]);
     });
+    expect(result.current.isPending).toBe(true);
 
+    response.resolve();
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     // Tras la respuesta del servidor, se mantiene (no vuelve a parpadear).
@@ -136,10 +140,13 @@ describe('useMoveCardMutation — optimismo', () => {
     queryClient.setQueryData(boardsKeys.detail(board._id), board);
 
     const callOrder: string[] = [];
+    const firstResponse = deferred();
     server.use(
       http.patch('/api/cards/:id/move', async ({ params }) => {
         callOrder.push(String(params.id));
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        if (params.id === 'a') {
+          await firstResponse.promise;
+        }
         return HttpResponse.json({ card: makeCard(String(params.id), 'col-2', 1000) });
       }),
     );
@@ -164,6 +171,12 @@ describe('useMoveCardMutation — optimismo', () => {
       });
     });
 
+    // Mientras la primera sigue en vuelo, la segunda queda en pausa en la
+    // cola del scope y no llega al servidor.
+    await waitFor(() => expect(callOrder).toEqual(['a']));
+    expect(second.current.isPaused).toBe(true);
+
+    firstResponse.resolve();
     await waitFor(() => expect(first.current.isSuccess).toBe(true));
     await waitFor(() => expect(second.current.isSuccess).toBe(true));
 

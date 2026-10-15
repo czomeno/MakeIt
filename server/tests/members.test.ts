@@ -60,20 +60,6 @@ describe('miembros', () => {
     expect(response.body.member.role).toBe('viewer');
   });
 
-  it('un editor no puede cambiar roles', async () => {
-    const owner = await registerUser(app);
-    const editor = await registerUser(app);
-    const board = await createBoard(app, owner.accessToken);
-    await inviteAndAccept(owner.accessToken, board._id, editor, 'editor');
-
-    const response = await request(app)
-      .patch(`/api/boards/${board._id}/members/${owner.userId}`)
-      .set('Authorization', `Bearer ${editor.accessToken}`)
-      .send({ role: 'viewer' });
-
-    expect(response.status).toBe(403);
-  });
-
   it('no permite degradar al último admin', async () => {
     const owner = await registerUser(app);
     const board = await createBoard(app, owner.accessToken);
@@ -187,6 +173,54 @@ describe('miembros', () => {
       .get(`/api/boards/${board._id}/members`)
       .set('Authorization', `Bearer ${outsider.accessToken}`);
 
+    expect(response.status).toBe(404);
+  });
+});
+
+describe('miembros: casos de error', () => {
+  it('cambiar el rol o expulsar a quien no es miembro devuelve 404', async () => {
+    const owner = await registerUser(app);
+    const stranger = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken);
+
+    const patch = await request(app)
+      .patch(`/api/boards/${board._id}/members/${stranger.userId}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ role: 'editor' });
+    expect(patch.status).toBe(404);
+
+    const remove = await request(app)
+      .delete(`/api/boards/${board._id}/members/${stranger.userId}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(remove.status).toBe(404);
+  });
+
+  it('rechaza un rol inválido', async () => {
+    const owner = await registerUser(app);
+    const other = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken);
+    await inviteAndAccept(owner.accessToken, board._id, other, 'viewer');
+
+    const response = await request(app)
+      .patch(`/api/boards/${board._id}/members/${other.userId}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ role: 'superadmin' });
+    expect(response.status).toBe(400);
+  });
+
+  it('un expulsado pierde el acceso al tablero (404)', async () => {
+    const owner = await registerUser(app);
+    const other = await registerUser(app);
+    const board = await createBoard(app, owner.accessToken);
+    await inviteAndAccept(owner.accessToken, board._id, other, 'editor');
+
+    await request(app)
+      .delete(`/api/boards/${board._id}/members/${other.userId}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+
+    const response = await request(app)
+      .get(`/api/boards/${board._id}`)
+      .set('Authorization', `Bearer ${other.accessToken}`);
     expect(response.status).toBe(404);
   });
 });

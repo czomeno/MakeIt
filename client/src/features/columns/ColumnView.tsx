@@ -94,6 +94,8 @@ export const ColumnView = forwardRef<HTMLDivElement, ColumnViewProps>(function C
     <div
       ref={ref}
       style={style}
+      // Solo para los tests e2e (Playwright), que necesitan acotar una columna.
+      data-testid="board-column"
       className={`flex w-full flex-col rounded-xl border border-border bg-surface ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">

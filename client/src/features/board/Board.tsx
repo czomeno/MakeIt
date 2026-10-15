@@ -7,12 +7,10 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
-  type Active,
   type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
-  type Over,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableColumn } from './SortableColumn';
@@ -29,6 +27,7 @@ import {
   columnMoveApiInput,
 } from './boardReducers';
 import { isCardData, isColumnData } from './dndTypes';
+import { resolveDrop, resolveFinalDrop } from './dropResolution';
 import { useMoveCardMutation } from '../cards/hooks';
 import { useMoveColumnMutation } from '../columns/hooks';
 import type { ActiveDrag } from './useBoardSocket';
@@ -42,55 +41,6 @@ interface BoardProps {
   // para que useBoardSocket pueda cancelar el arrastre si un evento remoto
   // mueve o borra justo lo que este cliente tiene en la mano.
   activeDragRef?: MutableRefObject<ActiveDrag>;
-}
-
-type ResolvedDrop =
-  | { kind: 'card'; params: Parameters<typeof applyCardMove>[1] }
-  | { kind: 'column'; params: Parameters<typeof applyColumnMove>[1] };
-
-function resolveDrop(board: BoardWithContent, active: Active, over: Over): ResolvedDrop | null {
-  const activeData = active.data.current;
-  const overData = over.data.current;
-
-  if (isCardData(activeData)) {
-    const cardId = String(active.id);
-    const sourceColumnId = activeData.columnId;
-
-    if (isCardData(overData)) {
-      const targetColumnId = overData.columnId;
-      const targetColumn = board.columns.find((column) => column._id === targetColumnId);
-      const targetIndex = targetColumn?.cards.findIndex((card) => card._id === over.id) ?? -1;
-      if (!targetColumn || targetIndex === -1) {
-        return null;
-      }
-      return { kind: 'card', params: { cardId, sourceColumnId, targetColumnId, targetIndex } };
-    }
-
-    if (isColumnData(overData)) {
-      const targetColumnId = String(over.id);
-      const targetColumn = board.columns.find((column) => column._id === targetColumnId);
-      if (!targetColumn) {
-        return null;
-      }
-      // Soltado en la columna (no sobre una tarjeta concreta): al final.
-      return {
-        kind: 'card',
-        params: { cardId, sourceColumnId, targetColumnId, targetIndex: targetColumn.cards.length },
-      };
-    }
-
-    return null;
-  }
-
-  if (isColumnData(activeData)) {
-    const targetIndex = board.columns.findIndex((column) => column._id === over.id);
-    if (targetIndex === -1) {
-      return null;
-    }
-    return { kind: 'column', params: { columnId: String(active.id), targetIndex } };
-  }
-
-  return null;
 }
 
 function findCard(board: BoardWithContent, id: string): CardType | undefined {
@@ -112,6 +62,8 @@ export function Board({ board, canEdit, onOpenCard, activeDragRef }: BoardProps)
   // cuando llega a 0, para que arrastres seguidos nunca muestren el orden
   // antiguo mientras una mutación anterior sigue encolada (scope).
   const pendingMoves = useRef(0);
+  // Último destino que onDragOver ya aplicó a dragPreview (ver resolveFinalDrop).
+  const lastAppliedOverId = useRef<string | null>(null);
 
   const moveCardMutation = useMoveCardMutation(boardId);
   const moveColumnMutation = useMoveColumnMutation(boardId);
@@ -153,6 +105,7 @@ export function Board({ board, canEdit, onOpenCard, activeDragRef }: BoardProps)
     if (!resolved) {
       return;
     }
+    lastAppliedOverId.current = String(over.id);
     const next =
       resolved.kind === 'card'
         ? applyCardMove(liveBoard, resolved.params)
@@ -170,7 +123,8 @@ export function Board({ board, canEdit, onOpenCard, activeDragRef }: BoardProps)
       activeDragRef.current = null;
     }
 
-    const resolved = over ? resolveDrop(liveBoard, active, over) : null;
+    const resolved = resolveFinalDrop(liveBoard, active, over, lastAppliedOverId.current);
+    lastAppliedOverId.current = null;
     if (!resolved) {
       if (pendingMoves.current === 0) {
         setDragPreview(null);
@@ -200,6 +154,7 @@ export function Board({ board, canEdit, onOpenCard, activeDragRef }: BoardProps)
   }
 
   function handleDragCancel(_event: DragCancelEvent) {
+    lastAppliedOverId.current = null;
     setActiveId(null);
     setActiveKind(null);
     if (activeDragRef) {

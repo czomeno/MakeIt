@@ -8,7 +8,11 @@ import { toastError, toastSuccess } from '../../stores/toastStore';
 import { avatarColorFor } from '../../lib/badgeColors';
 import type { BoardRole, Member } from '../../types/api';
 
-const ROLE_LABELS: Record<BoardRole, string> = { admin: 'Admin', editor: 'Editor', viewer: 'Lector' };
+const ROLE_LABELS: Record<BoardRole, string> = {
+  admin: 'Admin',
+  editor: 'Editor',
+  viewer: 'Lector',
+};
 const ROLES: BoardRole[] = ['admin', 'editor', 'viewer'];
 
 interface MembersPanelProps {
@@ -86,7 +90,8 @@ export function MembersPanel({ boardId, isAdmin, ownerId }: MembersPanelProps) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-text">
-                {member.name || member.email} {isSelf && <span className="text-text-muted">(tú)</span>}
+                {member.name || member.email}{' '}
+                {isSelf && <span className="text-text-muted">(tú)</span>}
               </p>
               <p className="truncate text-xs text-text-muted">{member.email}</p>
             </div>
@@ -115,7 +120,9 @@ export function MembersPanel({ boardId, isAdmin, ownerId }: MembersPanelProps) {
               <button
                 type="button"
                 onClick={() => setPendingRemoval(member)}
-                aria-label={isSelf ? 'Abandonar tablero' : `Expulsar a ${member.name || member.email}`}
+                aria-label={
+                  isSelf ? 'Abandonar tablero' : `Expulsar a ${member.name || member.email}`
+                }
                 className="shrink-0 rounded p-1 text-text-muted hover:bg-surface-hover hover:text-danger"
               >
                 ✕

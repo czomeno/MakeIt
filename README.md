@@ -1,26 +1,42 @@
 # MakeIt
 
+[![CI](https://github.com/czomeno/MakeIt/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/czomeno/MakeIt/actions/workflows/ci.yml)
+[![Seguridad](https://github.com/czomeno/MakeIt/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/czomeno/MakeIt/actions/workflows/security.yml)
+[![Cobertura mínima server](https://img.shields.io/badge/cobertura%20m%C3%ADnima%20server-90%25%20l%C3%ADneas-brightgreen)](#política-de-cobertura)
+[![Cobertura mínima client](https://img.shields.io/badge/cobertura%20m%C3%ADnima%20client-72%25%20l%C3%ADneas-green)](#política-de-cobertura)
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue)](LICENSE)
+[![Node 24](https://img.shields.io/badge/node-24%20LTS-339933?logo=node.js&logoColor=white)](.nvmrc)
+[![Demo en vivo](https://img.shields.io/badge/demo-en%20vivo-3b66e0)](https://TU-SERVICIO.onrender.com)
+<!-- TODO: sustituye TU-SERVICIO por la URL real de Render (DEPLOY.md, apartado 4). -->
+
+**Demo:** <https://TU-SERVICIO.onrender.com> · usuario `demo@makeit.app` (pídeme la
+contraseña) · se puede instalar en el móvil como app.
+
 Tablero Kanban colaborativo (tipo Trello) construido como proyecto de portfolio
 full-stack: tableros con listas y tarjetas que se pueden reordenar, con varios
 usuarios trabajando sobre el mismo tablero.
 
-> **Estado: Fase 4 — colaboración y tiempo real.** Sobre la Fase 3 (drag &
-> drop), ahora varios usuarios pueden trabajar a la vez en el mismo tablero:
-> invitaciones por enlace con roles, gestión de miembros, historial de
-> actividad y sincronización en vivo con Socket.io. Pendiente: despliegue
-> (Fase 5).
+> **Estado: Fase 6 — desplegado.** MakeIt funciona en internet como un único
+> servicio en Render (API + WebSocket + frontend, mismo origen) con MongoDB
+> Atlas, y se instala en el móvil como PWA. Cada cambio pasa por la red de
+> seguridad de la Fase 5 ([Calidad y CI](#calidad-y-ci)) antes de desplegarse.
+> Ver [Despliegue](#despliegue) y la guía paso a paso [DEPLOY.md](DEPLOY.md).
 
 ## Stack
 
-| Capa               | Tecnología                        |
-| ------------------ | --------------------------------- |
-| Frontend           | React 19 + Vite 6 + TypeScript    |
-| Backend            | Node.js + Express 5 + TypeScript  |
-| Tiempo real        | Socket.io                         |
-| Base de datos      | MongoDB con Mongoose              |
-| Contenedores       | Docker + Docker Compose           |
-| Calidad            | ESLint 9 (flat config) + Prettier |
-| Gestor de paquetes | npm                               |
+| Capa               | Tecnología                                                          |
+| ------------------ | ------------------------------------------------------------------- |
+| Frontend           | React 19 + Vite 6 + TypeScript                                      |
+| Backend            | Node.js + Express 5 + TypeScript                                    |
+| Tiempo real        | Socket.io                                                           |
+| Base de datos      | MongoDB con Mongoose                                                |
+| Contenedores       | Docker (imagen única de producción) + Docker Compose                |
+| Tests              | Jest + Supertest, Vitest + Testing Library, Playwright              |
+| Calidad            | ESLint 9 (flat config) + Prettier + Husky/lint-staged/commitlint    |
+| CI/CD              | GitHub Actions + GitHub Container Registry                          |
+| Observabilidad     | Logs estructurados con pino, `/api/health` y `/api/ready`           |
+| Producción         | Render (servicio web Docker) + MongoDB Atlas, PWA (vite-plugin-pwa) |
+| Gestor de paquetes | npm                                                                 |
 
 ## Requisitos
 
@@ -30,7 +46,7 @@ Para levantarlo con Docker (recomendado):
 
 Para ejecutarlo sin Docker:
 
-- Node.js 20 o superior y npm
+- Node.js 24 (la versión de [`.nvmrc`](.nvmrc): `nvm use`) y npm
 - Una instancia de MongoDB accesible (local o remota)
 
 ## Cómo levantarlo con Docker
@@ -63,15 +79,15 @@ docker compose down -v           # además, borrar los volúmenes (datos de Mong
 
 > El repo incluye un `Makefile` con atajos para estos comandos y para el
 > flujo de desarrollo local (`make help` los lista todos; ver `MAKEFILE.md`
-> para el detalle de cada uno). Por ejemplo: `make up`, `make smoke`,
+> para el detalle de cada uno). Por ejemplo: `make up`, `make health`,
 > `make logs-api`, `make test`.
 
 > `node_modules` de `api`/`client` vive en un volumen con nombre para que el
-> `npm install` no se repita en cada arranque. Si añades una dependencia y
-> `docker compose up --build` sigue fallando con un módulo "no encontrado",
-> el volumen tiene el `node_modules` antiguo: bórralo con
-> `docker compose down -v` (o `docker volume rm gestor_tareas_server-node-modules`)
-> y vuelve a construir.
+> `npm install` no se repita en cada arranque. Ese volumen no se actualiza al
+> reconstruir la imagen, así que el contenedor de desarrollo compara al
+> arrancar el hash de `package-lock.json` con el de la última instalación y,
+> si cambió (alguien añadió una dependencia), ejecuta `npm ci` antes de
+> levantar el servidor. No hace falta borrar volúmenes a mano.
 
 ## Cómo ejecutarlo sin Docker
 
@@ -105,6 +121,19 @@ de modo que no hay que configurar nada más en el cliente.
 
 ### Scripts disponibles
 
+En la raíz (orquestan los dos paquetes; ver [Calidad y CI](#calidad-y-ci)):
+
+| Script                  | Descripción                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `npm run check`         | Formato + lint + tipos + tests unitarios (lo que comprueba el CI) |
+| `npm run lint`          | ESLint en server y client (falla también con avisos)              |
+| `npm run typecheck`     | `tsc --noEmit` en server, client y los specs e2e                  |
+| `npm run format`        | Prettier `--write` en todo el repositorio                         |
+| `npm test`              | Tests de server y client                                          |
+| `npm run test:coverage` | Tests con cobertura; fallan si bajan del umbral                   |
+| `npm run test:e2e`      | Playwright contra el stack de `docker-compose.e2e.yml`            |
+| `npm run build`         | Build de server y client                                          |
+
 En `/server`:
 
 | Script                  | Descripción                                             |
@@ -113,6 +142,7 @@ En `/server`:
 | `npm run build`         | Compila TypeScript a `dist/`                            |
 | `npm start`             | Ejecuta la build de `dist/`                             |
 | `npm run lint`          | Analiza el código con ESLint                            |
+| `npm run typecheck`     | Comprueba los tipos (`tsc --noEmit`, incluye los tests) |
 | `npm test`              | Ejecuta los tests (Jest + Supertest + Mongo en memoria) |
 | `npm run test:coverage` | Tests con informe de cobertura                          |
 | `npm run seed`          | Crea un usuario y un tablero de ejemplo                 |
@@ -125,6 +155,7 @@ En `/client`:
 | `npm run build`         | Comprueba los tipos y genera el bundle en `dist/`  |
 | `npm run preview`       | Sirve en local el bundle de producción             |
 | `npm run lint`          | Analiza el código con ESLint                       |
+| `npm run typecheck`     | Comprueba los tipos (`tsc --noEmit`)               |
 | `npm test`              | Ejecuta los tests (Vitest + Testing Library + MSW) |
 | `npm run test:watch`    | Tests en modo observador                           |
 | `npm run test:coverage` | Tests con informe de cobertura                     |
@@ -160,13 +191,17 @@ En `/client`:
 │   ├── vite.config.ts          # Proxy de /api + configuración de Vitest
 │   ├── tsconfig*.json
 │   ├── eslint.config.js
-│   ├── Dockerfile              # Multi-stage: deps, dev, build, prod
+│   ├── public/                 # Iconos de la PWA (logo.svg + PNG)
+│   ├── Dockerfile              # Desarrollo (Vite); producción: Dockerfile de la raíz
 │   └── .dockerignore
 ├── server/                     # API Express
 │   ├── src/
 │   │   ├── config/
 │   │   │   ├── env.ts          # Carga con dotenv y validación con Zod
-│   │   │   └── db.ts           # Conexión con Mongoose y estado de la BD
+│   │   │   ├── db.ts           # Conexión (con reintentos) y estado de la BD
+│   │   │   ├── logger.ts       # pino: niveles, redacción de datos sensibles
+│   │   │   ├── version.ts      # Versión de la app (APP_VERSION o package.json)
+│   │   │   └── lifecycle.ts    # Estado de apagado (para /api/ready)
 │   │   ├── models/             # User, Board, Column, Card, RefreshToken,
 │   │   │                       # Invitation, Activity
 │   │   ├── schemas/             # Validación de entrada con Zod
@@ -185,7 +220,9 @@ En `/client`:
 │   │   ├── utils/               # calculatePosition, tokens, password, hash...
 │   │   ├── types/                # Augmentations de Express (req.user, req.boardId)
 │   │   ├── app.ts               # Construcción de la app de Express
-│   │   ├── server.ts            # Arranque (http.Server + Socket.io) y apagado ordenado
+│   │   ├── scripts/             # db:indexes y seed:demo (operación, a mano)
+│   │   ├── server.ts            # Arranque (http.Server + Socket.io) y señales
+│   │   ├── shutdown.ts          # Apagado ordenado (HTTP, sockets, Mongo)
 │   │   └── seed.ts              # npm run seed: usuario + tablero de ejemplo
 │   ├── tests/                   # Jest + Supertest + mongodb-memory-server
 │   ├── tsconfig.json / tsconfig.test.json
@@ -193,38 +230,65 @@ En `/client`:
 │   ├── eslint.config.js
 │   ├── Dockerfile               # Multi-stage: deps, dev, build, prod
 │   └── .dockerignore
-├── docker-compose.yml          # Servicios client, api y mongo
+├── e2e/                        # Tests end-to-end de Playwright (ver e2e/README.md)
+├── scripts/                    # smoke.mjs (post-despliegue), política de npm audit, cobertura
+├── .github/                    # Workflows (ci, security, release), Dependabot, plantillas
+├── .husky/                     # Hooks de git: pre-commit (lint-staged) y commit-msg
+├── docker-compose.yml          # Desarrollo: servicios client, api y mongo
+├── Dockerfile                  # Imagen ÚNICA de producción (API + frontend)
+├── render.yaml                 # Blueprint de Render (despliegue)
+├── docker-compose.prod.yml     # Alternativa VPS (referencia) con Caddy
+├── Caddyfile                   # Caddy: HTTPS automático delante de la app (VPS)
+├── DEPLOY.md                   # Guía de despliegue paso a paso
+├── docker-compose.e2e.yml      # Stack efímero para los tests e2e
+├── playwright.config.ts
+├── package.json                # Scripts unificados + herramientas de calidad
+├── .env.production.example     # Variables del compose de producción
 ├── requests.http                # Peticiones de ejemplo para probar la API
 ├── .env.example                 # Todas las variables de entorno
 ├── .prettierrc                  # Configuración de Prettier compartida
+├── .editorconfig / .nvmrc       # Estilo base del editor y versión de Node
+├── commitlint.config.js / lint-staged.config.js
 ├── .gitignore
+├── CONTRIBUTING.md / SECURITY.md / LICENSE
 └── README.md
 ```
 
 ## Variables de entorno
 
-| Variable                 | Por defecto             | Descripción                                       |
-| ------------------------ | ----------------------- | ------------------------------------------------- |
-| `NODE_ENV`               | `development`           | Entorno de ejecución                              |
-| `PORT`                   | `4000`                  | Puerto de la API                                  |
-| `MONGO_URI`              | —                       | Cadena de conexión a MongoDB (obligatoria)        |
-| `CORS_ORIGIN`            | `http://localhost:5173` | Origen permitido por CORS                         |
-| `JWT_ACCESS_SECRET`      | —                       | Secreto del access token (obligatoria, ≥16 car.)  |
-| `JWT_REFRESH_SECRET`     | —                       | Secreto del refresh token (obligatoria, ≥16 car.) |
-| `JWT_ACCESS_EXPIRES_IN`  | `15m`                   | Vida del access token                             |
-| `JWT_REFRESH_EXPIRES_IN` | `30d`                   | Vida del refresh token                            |
-| `BCRYPT_ROUNDS`          | `10`                    | Coste de bcrypt para las contraseñas              |
-| `INVITATION_EXPIRES_DAYS`| `7`                     | Días hasta que caduca una invitación pendiente    |
-| `APP_BASE_URL`           | `http://localhost:5173` | Base para construir el enlace `/invite/:token`    |
-| `APP_NAME`               | `MakeIt`                | Nombre usado en el asunto de las invitaciones     |
-| `SOCKET_PATH`            | `/socket.io`            | Path del servidor de Socket.io                    |
-| `MONGO_DB`               | `kanban`                | Base de datos usada por Compose                   |
-| `MONGO_PORT`             | `27017`                 | Puerto publicado de MongoDB                       |
-| `CLIENT_PORT`            | `5173`                  | Puerto publicado del cliente                      |
+Todas se validan con Zod al arrancar: si falta una obligatoria o un valor no
+es válido, el proceso termina explicando qué falla. **En producción**
+(`NODE_ENV=production`) además se exige: secretos JWT de 32 caracteres o más,
+distintos entre sí y que no sean de ejemplo; `MONGO_URI` con
+`mongodb://` o `mongodb+srv://`; y `APP_BASE_URL` con https. La plantilla de
+producción comentada está en [`.env.production.example`](.env.production.example).
 
-La API valida su configuración al arrancar con Zod: si falta una variable
-obligatoria o algún valor es inválido, el proceso termina con un mensaje
-explicando qué falla.
+| Variable                                  | Por defecto                        | Producción (Render)                       | Descripción                                                                 |
+| ----------------------------------------- | ---------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------- |
+| `NODE_ENV`                                | `development`                      | `production`                              | Entorno de ejecución                                                        |
+| `PORT`                                    | `4000`                             | lo inyecta Render                         | Puerto en el que escucha la app                                             |
+| `MONGO_URI`                               | —                                  | **secreto**: `mongodb+srv://...` de Atlas | Cadena de conexión (obligatoria)                                            |
+| `JWT_ACCESS_SECRET`                       | —                                  | **secreto**: `openssl rand -base64 48`    | Secreto del access token (obligatoria)                                      |
+| `JWT_REFRESH_SECRET`                      | —                                  | **secreto**: `openssl rand -base64 48`    | Secreto del refresh token (obligatoria, distinto del anterior)              |
+| `APP_BASE_URL`                            | `http://localhost:5173`            | `https://<servicio>.onrender.com`         | URL pública: base de los enlaces de invitación y de la CSP                  |
+| `SERVE_CLIENT`                            | `false`                            | `true` (ya en la imagen)                  | La API sirve también el frontend compilado                                  |
+| `CLIENT_DIST_PATH`                        | `./public`                         | `/app/public` (ya en la imagen)           | Carpeta del frontend compilado                                              |
+| `TRUST_PROXY`                             | `0`                                | `1`                                       | Proxies de confianza delante de la app (Render, Caddy)                      |
+| `CORS_ORIGIN`                             | sin definir                        | sin definir                               | Solo si el cliente se sirve desde otro origen (desarrollo con Vite: `5173`) |
+| `JWT_ACCESS_EXPIRES_IN`                   | `15m`                              | `15m`                                     | Vida del access token                                                       |
+| `JWT_REFRESH_EXPIRES_IN`                  | `30d`                              | `30d`                                     | Vida del refresh token y de la cookie de sesión                             |
+| `BCRYPT_ROUNDS`                           | `10`                               | `12`                                      | Coste de bcrypt para las contraseñas                                        |
+| `INVITATION_EXPIRES_DAYS`                 | `7`                                | `7`                                       | Días hasta que caduca una invitación pendiente                              |
+| `APP_NAME`                                | `MakeIt`                           | `MakeIt`                                  | Nombre usado en el asunto de las invitaciones                               |
+| `SOCKET_PATH`                             | `/socket.io`                       | `/socket.io`                              | Path del servidor de Socket.io                                              |
+| `LOG_LEVEL`                               | `info` (`silent` en tests)         | `info`                                    | Nivel de log: `fatal` … `trace` o `silent`                                  |
+| `AUTH_RATE_LIMIT_MAX`                     | `20`                               | `20`                                      | Peticiones a `/api/auth` por IP cada 15 min                                 |
+| `INVITATIONS_RATE_LIMIT_MAX`              | `30`                               | `30`                                      | Peticiones de invitaciones por IP cada 15 min                               |
+| `SHUTDOWN_TIMEOUT_MS`                     | `10000`                            | `10000`                                   | Margen del apagado ordenado tras `SIGTERM`                                  |
+| `APP_VERSION`                             | `RENDER_GIT_COMMIT` o package.json | la pone Render                            | Versión que informa `/api/health`                                           |
+| `DEMO_USER_EMAIL` / `DEMO_USER_PASSWORD`  | `demo@makeit.app` / —              | no van en Render                          | Solo para `npm run seed:demo` (en tu ordenador)                             |
+| `SMOKE_EMAIL` / `SMOKE_PASSWORD`          | —                                  | no van en Render                          | Solo para `npm run smoke` (en tu ordenador)                                 |
+| `MONGO_DB` / `MONGO_PORT` / `CLIENT_PORT` | `kanban` / `27017` / `5173`        | —                                         | Solo para el `docker-compose.yml` de desarrollo                             |
 
 ## API
 
@@ -233,36 +297,37 @@ Todas las rutas van bajo `/api`. Las que requieren autenticación esperan
 leen en su lugar la cookie `httpOnly` `refreshToken`. Las respuestas de error
 tienen la forma `{ "error": { "code", "message", "details"? } }`.
 
-| Método   | Ruta                           | Auth           | Descripción                                              |
-| -------- | ------------------------------ | -------------- | -------------------------------------------------------- |
-| `GET`    | `/api/health`                  | —              | Estado de la API y de la base de datos                   |
-| `POST`   | `/api/auth/register`           | —              | Crea una cuenta; devuelve `accessToken` + cookie refresh |
-| `POST`   | `/api/auth/login`              | —              | Igual que arriba, validando credenciales                 |
-| `POST`   | `/api/auth/refresh`            | cookie refresh | Rota el refresh token; devuelve `accessToken` nuevo      |
-| `POST`   | `/api/auth/logout`             | cookie refresh | Invalida el refresh token activo                         |
-| `GET`    | `/api/auth/me`                 | token          | Usuario autenticado                                      |
-| `GET`    | `/api/boards`                  | token          | Tableros donde el usuario es miembro                     |
-| `POST`   | `/api/boards`                  | token          | Crea un tablero; el creador queda como `admin`           |
-| `GET`    | `/api/boards/:id`              | token · viewer | Tablero con columnas y tarjetas ordenadas                |
-| `PATCH`  | `/api/boards/:id`              | token · admin  | Edita título/descripción                                 |
-| `DELETE` | `/api/boards/:id`              | token · admin  | Borra el tablero y sus columnas/tarjetas (cascada)       |
-| `POST`   | `/api/boards/:boardId/columns` | token · editor | Crea una columna                                         |
-| `PATCH`  | `/api/columns/:id`             | token · editor | Edita una columna                                        |
-| `DELETE` | `/api/columns/:id`             | token · editor | Borra la columna y sus tarjetas (cascada)                |
-| `PATCH`  | `/api/columns/:id/move`        | token · editor | Reordena la columna entre dos vecinas                    |
-| `POST`   | `/api/columns/:columnId/cards` | token · editor | Crea una tarjeta                                         |
-| `PATCH`  | `/api/cards/:id`               | token · editor | Edita una tarjeta                                        |
-| `DELETE` | `/api/cards/:id`               | token · editor | Borra una tarjeta                                        |
-| `PATCH`  | `/api/cards/:id/move`          | token · editor | Mueve la tarjeta de columna y/o posición                 |
-| `GET`    | `/api/boards/:boardId/activity`| token · viewer | Historial del tablero, paginado por cursor               |
-| `GET`    | `/api/cards/:id/activity`      | token · viewer | Historial de una tarjeta, paginado por cursor             |
-| `GET`    | `/api/boards/:boardId/members` | token · viewer | Miembros del tablero (id, nombre, email, rol)             |
-| `PATCH`  | `/api/boards/:boardId/members/:userId` | token · admin | Cambia el rol de un miembro                       |
-| `DELETE` | `/api/boards/:boardId/members/:userId` | token · admin (a otro) o el propio usuario | Expulsa o abandona |
-| `POST`   | `/api/boards/:boardId/invitations` | token · admin | Crea una invitación; devuelve el enlace con el token en claro |
-| `GET`    | `/api/boards/:boardId/invitations` | token · admin | Invitaciones pendientes (no caducadas)                 |
-| `DELETE` | `/api/invitations/:id`         | token · admin  | Revoca una invitación pendiente                           |
-| `POST`   | `/api/invitations/accept`      | token          | Acepta una invitación con `{ token }`; idempotente         |
+| Método   | Ruta                                   | Auth                                       | Descripción                                                         |
+| -------- | -------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
+| `GET`    | `/api/health`                          | —                                          | Liveness: estado, versión, uptime y estado de la base de datos      |
+| `GET`    | `/api/ready`                           | —                                          | Readiness: 200 si puede atender tráfico; 503 sin Mongo o apagándose |
+| `POST`   | `/api/auth/register`                   | —                                          | Crea una cuenta; devuelve `accessToken` + cookie refresh            |
+| `POST`   | `/api/auth/login`                      | —                                          | Igual que arriba, validando credenciales                            |
+| `POST`   | `/api/auth/refresh`                    | cookie refresh                             | Rota el refresh token; devuelve `accessToken` nuevo                 |
+| `POST`   | `/api/auth/logout`                     | cookie refresh                             | Invalida el refresh token activo                                    |
+| `GET`    | `/api/auth/me`                         | token                                      | Usuario autenticado                                                 |
+| `GET`    | `/api/boards`                          | token                                      | Tableros donde el usuario es miembro                                |
+| `POST`   | `/api/boards`                          | token                                      | Crea un tablero; el creador queda como `admin`                      |
+| `GET`    | `/api/boards/:id`                      | token · viewer                             | Tablero con columnas y tarjetas ordenadas                           |
+| `PATCH`  | `/api/boards/:id`                      | token · admin                              | Edita título/descripción                                            |
+| `DELETE` | `/api/boards/:id`                      | token · admin                              | Borra el tablero y sus columnas/tarjetas (cascada)                  |
+| `POST`   | `/api/boards/:boardId/columns`         | token · editor                             | Crea una columna                                                    |
+| `PATCH`  | `/api/columns/:id`                     | token · editor                             | Edita una columna                                                   |
+| `DELETE` | `/api/columns/:id`                     | token · editor                             | Borra la columna y sus tarjetas (cascada)                           |
+| `PATCH`  | `/api/columns/:id/move`                | token · editor                             | Reordena la columna entre dos vecinas                               |
+| `POST`   | `/api/columns/:columnId/cards`         | token · editor                             | Crea una tarjeta                                                    |
+| `PATCH`  | `/api/cards/:id`                       | token · editor                             | Edita una tarjeta                                                   |
+| `DELETE` | `/api/cards/:id`                       | token · editor                             | Borra una tarjeta                                                   |
+| `PATCH`  | `/api/cards/:id/move`                  | token · editor                             | Mueve la tarjeta de columna y/o posición                            |
+| `GET`    | `/api/boards/:boardId/activity`        | token · viewer                             | Historial del tablero, paginado por cursor                          |
+| `GET`    | `/api/cards/:id/activity`              | token · viewer                             | Historial de una tarjeta, paginado por cursor                       |
+| `GET`    | `/api/boards/:boardId/members`         | token · viewer                             | Miembros del tablero (id, nombre, email, rol)                       |
+| `PATCH`  | `/api/boards/:boardId/members/:userId` | token · admin                              | Cambia el rol de un miembro                                         |
+| `DELETE` | `/api/boards/:boardId/members/:userId` | token · admin (a otro) o el propio usuario | Expulsa o abandona                                                  |
+| `POST`   | `/api/boards/:boardId/invitations`     | token · admin                              | Crea una invitación; devuelve el enlace con el token en claro       |
+| `GET`    | `/api/boards/:boardId/invitations`     | token · admin                              | Invitaciones pendientes (no caducadas)                              |
+| `DELETE` | `/api/invitations/:id`                 | token · admin                              | Revoca una invitación pendiente                                     |
+| `POST`   | `/api/invitations/accept`              | token                                      | Acepta una invitación con `{ token }`; idempotente                  |
 
 "viewer/editor/admin" es el rol mínimo exigido en ese tablero. Si el usuario no
 es miembro del tablero, cualquiera de estas rutas responde `404` (no `403`,
@@ -319,7 +384,13 @@ siempre, sin guardar un campo de color en el modelo de datos.
 
 ### Capturas de pantalla
 
-_Pendiente: añadir capturas de /login, /boards y la vista de un tablero._
+<!-- TODO: añade las capturas en docs/screenshots/ y descomenta las líneas. -->
+
+| Escritorio                                                                                             | Móvil (PWA instalada)                                                                                       |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| <!-- ![Lista de tableros](docs/screenshots/escritorio-tableros.png) --> _Pendiente: lista de tableros_ | <!-- ![Tableros en el móvil](docs/screenshots/movil-tableros.png) --> _Pendiente: lista de tableros_        |
+| <!-- ![Tablero](docs/screenshots/escritorio-tablero.png) --> _Pendiente: un tablero con tarjetas_      | <!-- ![Tablero en el móvil](docs/screenshots/movil-tablero.png) --> _Pendiente: un tablero_                 |
+| <!-- ![Login](docs/screenshots/escritorio-login.png) --> _Pendiente: inicio de sesión_                 | <!-- ![Instalar la app](docs/screenshots/movil-instalar.png) --> _Pendiente: «Añadir a pantalla de inicio»_ |
 
 ### Arrastrar y soltar (drag & drop)
 
@@ -373,9 +444,11 @@ quedan siempre sincronizadas entre sí.
 
 _Pendiente: grabar un GIF arrastrando una tarjeta entre columnas._
 
-_Pendiente: grabar un GIF con dos ventanas mostrando la colaboración en vivo
-en MakeIt (mover una tarjeta en una y verla actualizarse al instante en la
-otra)._
+<!-- TODO: docs/colaboracion.gif — dos ventanas (o ordenador + móvil) con
+el mismo tablero: mover una tarjeta en una y verla moverse sola en la otra. -->
+
+_Pendiente: GIF con dos ventanas mostrando la colaboración en vivo (mover una
+tarjeta en una y verla actualizarse al instante en la otra)._
 
 ## Colaboración y tiempo real
 
@@ -425,23 +498,23 @@ literalmente en `client/src/socket/events.ts` (el cliente no puede importar
 código del servidor en el build de Vite); un test en ambos lados compara los
 dos archivos para detectar divergencias.
 
-| Evento              | Payload                                                   |
-| -------------------- | ---------------------------------------------------------- |
-| `card:created`       | `{ card, actorId, clientId? }`                             |
-| `card:updated`       | `{ card, actorId, clientId? }`                             |
-| `card:moved`         | `{ card, actorId, clientId? }`                             |
-| `card:deleted`       | `{ cardId, columnId, actorId, clientId? }`                 |
-| `column:created`     | `{ column, actorId, clientId? }`                           |
-| `column:updated`     | `{ column, actorId, clientId? }`                           |
-| `column:moved`       | `{ column, actorId, clientId? }`                           |
-| `column:deleted`     | `{ columnId, actorId, clientId? }`                         |
-| `board:updated`      | `{ board, actorId, clientId? }`                             |
-| `board:deleted`      | `{ boardId, actorId }`                                      |
-| `member:joined`      | `{ member: { userId, role, name?, email? }, actorId }`     |
-| `member:updated`     | `{ member: { userId, role, name?, email? }, actorId }`     |
-| `member:removed`     | `{ userId, actorId }`                                       |
-| `activity:created`   | `{ activity }`                                               |
-| `presence:update`    | `{ users: [{ userId, name, initials }] }`                  |
+| Evento             | Payload                                                |
+| ------------------ | ------------------------------------------------------ |
+| `card:created`     | `{ card, actorId, clientId? }`                         |
+| `card:updated`     | `{ card, actorId, clientId? }`                         |
+| `card:moved`       | `{ card, actorId, clientId? }`                         |
+| `card:deleted`     | `{ cardId, columnId, actorId, clientId? }`             |
+| `column:created`   | `{ column, actorId, clientId? }`                       |
+| `column:updated`   | `{ column, actorId, clientId? }`                       |
+| `column:moved`     | `{ column, actorId, clientId? }`                       |
+| `column:deleted`   | `{ columnId, actorId, clientId? }`                     |
+| `board:updated`    | `{ board, actorId, clientId? }`                        |
+| `board:deleted`    | `{ boardId, actorId }`                                 |
+| `member:joined`    | `{ member: { userId, role, name?, email? }, actorId }` |
+| `member:updated`   | `{ member: { userId, role, name?, email? }, actorId }` |
+| `member:removed`   | `{ userId, actorId }`                                  |
+| `activity:created` | `{ activity }`                                         |
+| `presence:update`  | `{ users: [{ userId, name, initials }] }`              |
 
 `clientId` es el `TAB_ID` del cliente que originó el cambio (una cadena
 aleatoria por pestaña, generada una vez al cargar `socket/clientId.ts`, no
@@ -509,6 +582,188 @@ ver todos.
 
 **Retención**: índice TTL sobre `createdAt` a 180 días (mismo patrón que
 `RefreshToken`), para que la colección no crezca sin límite.
+
+## Despliegue
+
+MakeIt está desplegado gratis como **un único servicio web en Render**
+(imagen Docker con la API REST, el WebSocket de Socket.io y el frontend
+compilado, todo desde el mismo origen) y **MongoDB Atlas M0**. La guía
+completa, paso a paso y pensada para quien no ha desplegado nunca, está en
+**[DEPLOY.md](DEPLOY.md)**: Atlas con un usuario de permisos mínimos,
+secretos, Blueprint de Render, variables, errores típicos, prueba en el
+móvil, seguridad, dominio propio, copias de seguridad y la alternativa VPS.
+
+```mermaid
+flowchart LR
+    U["Navegador / PWA en el móvil"] -- "HTTPS + WSS (mismo origen)" --> R
+    subgraph R["Render: servicio web (imagen Docker única)"]
+        direction TB
+        S["Estáticos de React<br/>(index.html, /assets, service worker)"]
+        A["API REST /api/*<br/>Express"]
+        W["Tiempo real /socket.io<br/>Socket.io"]
+    end
+    A --> DB[("MongoDB Atlas M0")]
+    W --> DB
+```
+
+| Pieza           | Archivo                                                                         |
+| --------------- | ------------------------------------------------------------------------------- |
+| Imagen única    | [`Dockerfile`](Dockerfile)                                                      |
+| Blueprint       | [`render.yaml`](render.yaml) (despliega solo si el CI pasa)                     |
+| Variables       | [`.env.production.example`](.env.production.example)                            |
+| Índices / demo  | `npm run db:indexes` / `npm run seed:demo` (en `server/`)                       |
+| Smoke test      | `npm run smoke -- <url>`                                                        |
+| Alternativa VPS | [`docker-compose.prod.yml`](docker-compose.prod.yml) + [`Caddyfile`](Caddyfile) |
+
+**En el móvil.** MakeIt es una **PWA instalable** («Añadir a pantalla de
+inicio» en iOS y Android): icono propio, pantalla completa y sesión que
+persiste al cerrar y reabrir. El service worker solo guarda el esqueleto de
+la app; los datos siempre vienen del servidor. Cuando hay una versión nueva,
+la app avisa con un botón **Recargar**.
+
+**Arranque en frío.** En el plan gratuito el servicio se duerme tras un rato
+sin tráfico. Si una petición tarda, la app muestra «Despertando el servidor,
+puede tardar hasta un minuto…», reintenta los `502`/`503` del proxy sin
+perder la sesión, y el socket reconecta solo.
+
+### Antes de compartir el enlace en mi CV
+
+- [ ] La URL de la demo está en el badge y en la línea «Demo» de arriba.
+- [ ] `npm run smoke -- <url>` termina en `Smoke test OK`.
+- [ ] La lista de seguridad de [DEPLOY.md](DEPLOY.md#8-lista-de-seguridad-antes-de-compartir-la-url)
+      está completa (secretos propios, usuario limitado en Atlas, cookie
+      `Secure`, cabeceras, rate limiting, `trust proxy` verificado).
+- [ ] La cuenta demo existe (`seed:demo`), su contraseña es larga y su tablero
+      está ordenado.
+- [ ] Probado en un móvil real: instalar, cerrar y reabrir con la sesión
+      iniciada, y colaboración en vivo con el ordenador.
+- [ ] Capturas de escritorio y móvil, y GIF de colaboración añadidos (huecos
+      marcados en [Capturas de pantalla](#capturas-de-pantalla) y
+      [GIF de demostración](#gif-de-demostración)).
+- [ ] El CI de `main` está en verde (badge de arriba) y la rama `main` está
+      protegida con `ci-ok`.
+- [ ] Abierta en una ventana de incógnito y en Safari: la primera carga
+      (tras dormirse el servicio) muestra el aviso y luego funciona.
+
+## Calidad y CI
+
+Ningún cambio llega a `main` sin pasar una red de seguridad automática. En
+local, `npm run check` ejecuta lo mismo que la primera parte del CI.
+
+### Workflows
+
+| Workflow                                         | Cuándo                                    | Qué comprueba                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`ci.yml`](.github/workflows/ci.yml)             | Push a `main` y cada pull request         | `lint-typecheck` (Prettier, ESLint, tsc), `test-server` y `test-client` (con umbral de cobertura, informe como artefacto), `build`, `docker` (la imagen única de producción con Buildx y caché, sin publicar), `e2e` (Playwright contra esa misma imagen; solo si todo lo anterior pasa) y `ci-ok`, que los resume. |
+| [`security.yml`](.github/workflows/security.yml) | Pull requests, push a `main` y cada lunes | `npm audit` (raíz, server, client), CodeQL (JavaScript/TypeScript), gitleaks sobre todo el historial, Trivy sobre la imagen de producción y revisión de dependencias en los pull requests.                                                                                                                          |
+| [`release.yml`](.github/workflows/release.yml)   | Push a `main` y tags `v*`                 | Publica la imagen única en `ghcr.io/czomeno/makeit` con tags `latest` y `sha-<commit>` (main) o semver (`1.2.3`, `1.2`), para la alternativa VPS. No despliega: Render despliega solo cuando los checks pasan (`render.yaml`).                                                                                      |
+| [`dependabot.yml`](.github/dependabot.yml)       | Semanal (lunes)                           | Actualizaciones agrupadas de npm (raíz, server, client), GitHub Actions, imágenes de Docker y de Compose.                                                                                                                                                                                                           |
+
+Todos los workflows tienen `permissions: contents: read` por defecto (solo
+los jobs que lo necesitan amplían permisos), `concurrency` para cancelar
+ejecuciones obsoletas de la misma rama y las actions fijadas por SHA.
+
+### Cómo ejecutar cada tipo de test en local
+
+```bash
+npm install && npm install --prefix server && npm install --prefix client   # una vez
+
+npm run check                 # formato + lint + tipos + tests unitarios
+npm test --prefix server      # API: Jest + Supertest + Mongo en memoria
+npm test --prefix client      # cliente: Vitest + Testing Library + MSW
+npm run test:coverage         # ambos con cobertura (y umbrales)
+npx playwright install chromium && npm run test:e2e   # e2e (necesita Docker)
+```
+
+Los e2e están documentados en [`e2e/README.md`](e2e/README.md): qué cubre cada
+flujo, cómo depurarlos (`--ui`, trazas) y las reglas de la suite.
+
+### Hooks de git
+
+Husky instala dos hooks al hacer `npm install` en la raíz:
+
+- **pre-commit**: `lint-staged` ejecuta ESLint (`--fix`) y Prettier solo sobre
+  los archivos en staging. Tarda un par de segundos.
+- **commit-msg**: commitlint exige [Conventional Commits](https://www.conventionalcommits.org/es/)
+  (`feat(client): ...`, `fix: ...`).
+
+Los tests completos no van en los hooks: los ejecuta el CI (ver Decisiones
+técnicas).
+
+### Política de cobertura
+
+| Paquete  | Líneas | Sentencias | Funciones | Ramas |
+| -------- | ------ | ---------- | --------- | ----- |
+| `server` | 90 %   | 90 %       | 90 %      | 75 %  |
+| `client` | 72 %   | 72 %       | 72 %      | 60 %  |
+
+Son mínimos, configurados en `server/jest.config.js` y `client/vite.config.ts`:
+si la cobertura baja de ahí, `npm run test:coverage` falla y el CI también.
+Están unos puntos por debajo de la cobertura real para no frenar cambios
+legítimos. En el cliente, el arrastre de dnd-kit no se puede ejercitar en
+jsdom; esa parte la cubren los e2e. El objetivo no es el 100 %, sino cubrir
+el comportamiento importante: autorización por rol, invitaciones, sockets,
+posiciones y rebalanceo, mutaciones optimistas y estados de error. Cada job
+publica la tabla de cobertura en su resumen y el informe completo como
+artefacto.
+
+### Política de seguridad
+
+- **Dependencias (`npm audit`)**: el CI falla solo si hay vulnerabilidades
+  **altas o críticas con una versión corregida disponible**
+  ([`scripts/audit-policy.mjs`](scripts/audit-policy.mjs)). Las que no tienen
+  arreglo se muestran como aviso: no hay nada que actualizar todavía, y
+  Dependabot abrirá el PR cuando exista. Las moderadas y bajas las gestiona
+  Dependabot sin bloquear.
+- **Código**: CodeQL con el conjunto `security-extended`.
+- **Secretos**: gitleaks recorre todo el historial en cada PR, en `main` y
+  cada semana.
+- **Imágenes**: Trivy falla con vulnerabilidades CRITICAL/HIGH que ya tienen
+  parche (`--ignore-unfixed`). La imagen de producción corre sin root,
+  sin npm y con versión de base fija.
+- **Reporte de vulnerabilidades**: ver [SECURITY.md](SECURITY.md).
+
+### Imagen de producción
+
+Una **única imagen** ([`Dockerfile`](Dockerfile) de la raíz) con la API y el
+frontend compilado: Node 24 Alpine, solo dependencias de producción, usuario
+`node`, sin npm, `HEALTHCHECK` contra `/api/ready` y arranque directo con
+`node` (para que `SIGTERM` llegue al proceso). Con `SERVE_CLIENT=true`, Express
+sirve los estáticos con caché inmutable para `/assets`, `index.html` sin caché
+y fallback a `index.html` para el router de React; `/api` y `/socket.io` tienen
+prioridad, y una ruta de `/api` inexistente es un 404 JSON. Respuestas con
+gzip. Es lo que se despliega, lo que prueban los e2e y lo que escanea Trivy.
+
+```bash
+docker build -t makeit .
+npm run smoke -- http://localhost:<puerto> --env-file .env.smoke.local
+```
+
+### Observabilidad
+
+- Logs JSON con [pino](https://getpino.io): nivel con `LOG_LEVEL`, un
+  `X-Request-Id` por petición (se reutiliza el que mande un proxy), la IP del cliente y redacción
+  de contraseñas, tokens, cookies y cabecera `Authorization`.
+- `GET /api/health` (liveness) y `GET /api/ready` (readiness, 503 sin Mongo o
+  durante el apagado).
+- Si Mongo no está disponible al arrancar, la API reintenta conectar con
+  espera creciente en lugar de quedarse sin base de datos para siempre.
+- Al recibir `SIGTERM`, la API deja de aceptar conexiones, termina las
+  peticiones en curso, cierra los sockets y la conexión a Mongo, y sale. Los
+  errores no capturados se registran y provocan un apagado ordenado con
+  código 1.
+
+### Protección de la rama `main` (configuración manual en GitHub)
+
+En **Settings → Branches → Add branch ruleset** (o _Branch protection rule_)
+para `main`:
+
+- **Require a pull request before merging.**
+- **Require status checks to pass**: añade solo **`ci-ok`**.
+- **Require branches to be up to date before merging.**
+- **Block force pushes** y **Restrict deletions**.
+- Opcional: también los checks de `Seguridad` (`CodeQL`, `Secretos
+(gitleaks)`...) si quieres que bloqueen el merge.
 
 ## Decisiones técnicas
 
@@ -652,10 +907,98 @@ ver todos.
   que recibe la persona invitada; el servidor solo necesita poder comparar
   hashes para validarlo al aceptar.
 
+- **Una suite e2e pequeña y fiable (4 flujos) en vez de una grande.** Los e2e
+  son los tests más lentos y más propensos a fallar por causas ajenas al
+  código. Cuatro flujos cubren lo que ningún test unitario puede: la sesión
+  sobreviviendo a una recarga, el arrastre real, dos navegadores
+  colaborando por socket y el aislamiento entre usuarios. El resto se prueba
+  más barato y más rápido en Jest y Vitest. Sin reintentos y sin esperas
+  fijas: un test que solo pasa a veces se arregla, no se esconde.
+- **Un único check requerido (`ci-ok`).** La protección de rama de GitHub
+  exige nombrar cada check. Si se exigen todos los jobs, renombrar o añadir
+  uno obliga a tocar la configuración del repositorio, y es fácil dejar un
+  job nuevo sin proteger. `ci-ok` depende de todos y falla si alguno falla
+  o se salta, así que la protección no cambia aunque cambie el workflow.
+- **Permisos mínimos y actions fijadas por SHA.** El `GITHUB_TOKEN` solo
+  puede leer el repositorio salvo en los jobs que lo necesitan (CodeQL
+  escribe resultados, `release` escribe paquetes). Si una action de
+  terceros se ve comprometida, el daño queda acotado. Fijarlas por SHA del
+  commit, y no por tag, evita que un tag movido ejecute código distinto del
+  revisado. Dependabot las mantiene al día con PRs. gitleaks y Trivy se
+  ejecutan desde sus imágenes oficiales con versión fija, sin actions
+  intermedias.
+- **Sin tests completos en el pre-commit.** Un hook que tarda un minuto se
+  acaba saltando con `--no-verify`, y entonces no protege nada. El
+  pre-commit solo arregla formato y lint de lo que cambió (segundos); la
+  garantía de que todo pasa la da el CI, que además corre en un entorno
+  limpio.
+- **Selectores por rol y nombre accesible en los tests.** `getByRole('button',
+{ name: 'Guardar cambios' })` describe lo que ve y usa una persona, también
+  con lector de pantalla. Las clases CSS o la estructura del DOM cambian en
+  cualquier rediseño sin que cambie el comportamiento, y los tests que
+  dependen de ellas fallan sin motivo. Además, si un elemento no se puede
+  localizar por rol, suele ser un problema de accesibilidad. El único
+  `data-testid` es el contenedor de una columna, que no tiene rol propio.
+- **Las e2e usan la imagen de producción.** Así prueban también lo que solo
+  existe en producción: los estáticos servidos por Express con su fallback de
+  rutas, la CSP, la cookie `Secure` y el arranque compilado. Si usaran Vite en
+  modo desarrollo, todo eso quedaría sin probar.
+- **Node 24 LTS fijado en todas partes.** `.nvmrc`, el campo `engines`, las
+  imágenes de Docker (versión exacta) y el CI (`node-version-file: .nvmrc`)
+  usan la misma major, para que "en mi máquina funciona" signifique lo mismo
+  en local, en CI y en producción.
+
+- **Un solo servicio y mismo origen (Fase 6).** La API, el WebSocket y el
+  frontend se sirven desde la misma URL. Con frontend y API en dominios
+  distintos (p. ej. `*.vercel.app` y `*.onrender.com`), la cookie httpOnly del
+  refresh token sería de **terceros**, y Safari/iOS (ITP) y cada vez más
+  navegadores las bloquean: la sesión se perdería al recargar, justo en el
+  móvil. Con mismo origen la cookie es de primera parte (`SameSite=Strict`),
+  no hace falta CORS (la API no lo habilita salvo que se configure
+  `CORS_ORIGIN`) y hay una sola pieza que desplegar, vigilar y versionar. La
+  cookie lleva además `Expires`: sin ella sería de sesión y iOS la borraría
+  al cerrar la PWA.
+- **Por qué no funciones serverless.** Socket.io necesita un proceso que
+  mantenga abiertas las conexiones WebSocket y el estado en memoria de rooms y
+  presencia. Las funciones serverless se ejecutan por petición, con tiempo
+  máximo y sin conexiones persistentes, así que el tiempo real no encaja ahí.
+  Un servicio web con un proceso Node de larga duración (Render, un VPS) sí.
+- **Atlas con `0.0.0.0/0`, mitigado.** Render gratuito no tiene IP de salida
+  fija, así que Atlas no puede filtrar por IP. La protección pasa a la
+  autenticación: un usuario de aplicación con `readWrite` solo sobre la base
+  de datos de MakeIt (no admin), una contraseña aleatoria larga que solo vive
+  en el panel de Render, y TLS obligatorio. Con una IP fija (plan de pago o
+  VPS), se restringe a esa IP.
+- **La PWA no cachea la API.** El service worker solo precachea el esqueleto
+  (HTML, JS, CSS, iconos) para arrancar rápido e instalarse; `/api` y
+  `/socket.io` están excluidos y no hay caché en tiempo de ejecución. Los
+  datos de un tablero colaborativo cambian en vivo y dependen del usuario: un
+  dato cacheado podría mostrar un tablero de otra sesión o un estado viejo.
+  Las versiones nuevas se activan con aviso («Recargar»), no por sorpresa,
+  para no perder lo que se esté editando.
+- **Índices: `autoIndex` + script de verificación.** Mongoose crea los índices
+  al conectar (idempotente y adecuado al volumen de M0), y
+  `npm run db:indexes` los crea si faltan y **comprueba** los que garantizan
+  algo (email único, invitación pendiente única, TTL de sesiones y de
+  actividad). Las invitaciones no tienen TTL a propósito: un enlace caducado
+  debe decir «ha caducado», no «no encontrada».
+- **Cómo escalaría.** Hoy hay una sola instancia, y Socket.io guarda rooms y
+  presencia en memoria. Para varias instancias:
+  1. El adapter de Redis de Socket.io (`@socket.io/redis-adapter`), para que
+     un evento emitido en una instancia llegue a los sockets de las demás.
+  2. La presencia (`socket/presence.ts`) y los contadores del rate limit en
+     Redis en lugar de en memoria.
+  3. Sticky sessions en el balanceador (o solo transporte WebSocket), porque
+     el long-polling de Socket.io necesita volver a la misma instancia.
+  4. Los estáticos detrás de una CDN (ya tienen nombres con hash y caché
+     inmutable), dejando al servicio solo la API y el WebSocket.
+  5. Atlas en un plan con réplicas y copias automáticas.
+
 ## Roadmap
 
 - ~~Fase 2: frontend funcional (registro, login, tableros, columnas, tarjetas).~~
 - ~~Fase 3: drag & drop para reordenar y mover columnas/tarjetas.~~
 - ~~Fase 4: tiempo real entre colaboradores (Socket.io), invitaciones y
   gestión de miembros de un tablero.~~
-- Fase 5: despliegue.
+- ~~Fase 5: calidad, seguridad automatizada y CI/CD.~~
+- ~~Fase 6: despliegue (Render + Atlas, PWA instalable).~~

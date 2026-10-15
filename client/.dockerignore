@@ -1,13 +1,16 @@
+# Solo lo necesario para compilar el bundle; nada de secretos ni artefactos.
 node_modules
 dist
+coverage
 npm-debug.log*
+*.log
 .env
 .env.*
-!.env.example
 .git
 .gitignore
 .DS_Store
-coverage
-*.log
 Dockerfile
 .dockerignore
+**/*.test.ts
+**/*.test.tsx
+src/test

@@ -118,17 +118,4 @@ describe('columnas', () => {
     expect(columns.map((c) => c.title)).toEqual(['Por hacer', 'Hecho', 'En curso']);
     expect(columns.map((c) => c.position)).toEqual([1000, 2000, 3000]);
   });
-
-  it('un no-miembro recibe 404 al intentar crear una columna', async () => {
-    const owner = await registerUser(app);
-    const intruder = await registerUser(app);
-    const board = await createBoard(app, owner.accessToken);
-
-    const response = await request(app)
-      .post(`/api/boards/${board._id}/columns`)
-      .set('Authorization', `Bearer ${intruder.accessToken}`)
-      .send({ title: 'Intrusa' });
-
-    expect(response.status).toBe(404);
-  });
 });

@@ -86,7 +86,11 @@ export function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-text-muted">
           ¿No tienes cuenta?{' '}
-          <Link to="/register" state={location.state} className="text-accent hover:text-accent-hover">
+          <Link
+            to="/register"
+            state={location.state}
+            className="text-accent hover:text-accent-hover"
+          >
             Regístrate
           </Link>
         </p>

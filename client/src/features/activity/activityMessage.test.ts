@@ -17,7 +17,10 @@ function makeItem(overrides: Partial<ActivityItem>): ActivityItem {
 describe('activityMessage', () => {
   it('card.created', () => {
     const msg = activityMessage(
-      makeItem({ type: 'card.created', data: { cardTitle: 'Diseñar logo', columnTitle: 'Por hacer' } }),
+      makeItem({
+        type: 'card.created',
+        data: { cardTitle: 'Diseñar logo', columnTitle: 'Por hacer' },
+      }),
     );
     expect(msg).toBe('Ana creó «Diseñar logo» en Por hacer');
   });

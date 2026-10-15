@@ -8,7 +8,7 @@ import * as authController from '../controllers/auth.controller.js';
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: env.AUTH_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   // En tests, muchas peticiones legítimas pueden superar el límite en segundos.

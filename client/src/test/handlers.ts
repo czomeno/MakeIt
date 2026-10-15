@@ -58,7 +58,5 @@ export const handlers = [
   http.get('/api/boards/:boardId/activity', () =>
     HttpResponse.json({ items: [], nextCursor: null }),
   ),
-  http.get('/api/cards/:cardId/activity', () =>
-    HttpResponse.json({ items: [], nextCursor: null }),
-  ),
+  http.get('/api/cards/:cardId/activity', () => HttpResponse.json({ items: [], nextCursor: null })),
 ];

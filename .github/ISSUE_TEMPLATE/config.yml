@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/czomeno/MakeIt/security/advisories/new
+    about: De forma privada, nunca en una issue pública (ver SECURITY.md).

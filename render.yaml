@@ -1,0 +1,61 @@
+# Blueprint de Render: un único servicio web (Docker) que sirve la API REST,
+# el WebSocket de Socket.io y el frontend compilado desde el mismo origen.
+# Guía paso a paso: DEPLOY.md.
+#
+# - Los secretos llevan `sync: false`: Render los pide al crear el Blueprint y
+#   se introducen a mano en el panel. NUNCA se escriben en este archivo.
+# - PORT no se declara: lo inyecta Render y la app lo respeta.
+# - autoDeployTrigger: checksPass -> tras un push a main, Render espera a que
+#   los checks de GitHub de ese commit (CI) estén en verde antes de desplegar.
+
+services:
+  - type: web
+    name: makeit
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeployTrigger: checksPass
+    # Readiness: 200 solo con Mongo conectado. Render no envía tráfico a una
+    # instancia nueva hasta que responde, y la deja de usar si falla.
+    healthCheckPath: /api/ready
+    envVars:
+      # --- Secretos: los introduces tú en el panel de Render ---
+      - key: MONGO_URI
+        sync: false # mongodb+srv://<usuario>:<contraseña>@<cluster>/makeit?...
+      - key: JWT_ACCESS_SECRET
+        sync: false # openssl rand -base64 48
+      - key: JWT_REFRESH_SECRET
+        sync: false # openssl rand -base64 48 (distinto del anterior)
+      - key: APP_BASE_URL
+        sync: false # https://<nombre-del-servicio>.onrender.com (o tu dominio)
+
+      # --- Configuración no sensible ---
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_CLIENT
+        value: 'true'
+      - key: TRUST_PROXY
+        value: '1' # un proxy (el de Render) delante de la app
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_NAME
+        value: MakeIt
+      - key: SOCKET_PATH
+        value: /socket.io
+      - key: BCRYPT_ROUNDS
+        value: '12'
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: INVITATION_EXPIRES_DAYS
+        value: '7'
+      - key: AUTH_RATE_LIMIT_MAX
+        value: '20'
+      - key: INVITATIONS_RATE_LIMIT_MAX
+        value: '30'
+      - key: SHUTDOWN_TIMEOUT_MS
+        value: '10000'
