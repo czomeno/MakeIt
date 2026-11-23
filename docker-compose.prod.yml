@@ -38,7 +38,7 @@ services:
     # Sin "ports": solo se accede a través de Caddy.
 
   caddy:
-    image: caddy:2.10-alpine
+    image: caddy:2.11-alpine
     restart: unless-stopped
     ports:
       - '80:80'
@@ -55,7 +55,7 @@ services:
 
   # Opcional (perfil "mongo"): Mongo en el propio VPS, con usuario y volumen.
   mongo:
-    image: mongo:7.0
+    image: mongo:9.0
     profiles: [mongo]
     restart: unless-stopped
     environment:
